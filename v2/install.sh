@@ -28,7 +28,7 @@ export LOG_FILE
 # --------------------------------------------------
 # Wizard state
 # --------------------------------------------------
-TOTAL_STEPS=5
+TOTAL_STEPS=8
 CURRENT_STEP=0
 CURRENT_TITLE=""
 
@@ -38,7 +38,7 @@ CURRENT_TITLE=""
 cleanup() {
   enable_terminal_input
   clear
-  echo "script finished. See more details on $LOG_DIR/kubernetes-lab-installer.log"
+  echo "script finished. See more details on $LOG_FILE"
 }
 trap cleanup EXIT
 
@@ -105,9 +105,8 @@ draw_step 4 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 1
 
 # ==================================================
-# STEP 5 – Cluster (pendiente)
+# STEP 5 – Kubernetes Cluster (k3d)
 # ==================================================
-
 CURRENT_STEP=5
 CURRENT_TITLE="CREATING KUBERNETES CLUSTER"
 
@@ -118,11 +117,63 @@ source ./steps/05-k3d-cluster.sh
 rc=$?
 set -e
 
-if [[ $rc -ne 0 ]]; then
-  false
-fi
+if [[ $rc -ne 0 ]]; then false; fi
 
 draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+sleep 1
+
+# ==================================================
+# STEP 6 – Storage (Longhorn)
+# ==================================================
+CURRENT_STEP=6
+CURRENT_TITLE="INSTALLING STORAGE (LONGHORN)"
+
+draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+
+set +e
+source ./steps/06-storage-longhorn.sh
+rc=$?
+set -e
+
+if [[ $rc -ne 0 ]]; then false; fi
+
+draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+sleep 1
+
+# ==================================================
+# STEP 7 – MinIO (S3)
+# ==================================================
+CURRENT_STEP=7
+CURRENT_TITLE="DEPLOYING MINIO (S3)"
+
+draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+
+set +e
+source ./steps/07-minio.sh
+rc=$?
+set -e
+
+if [[ $rc -ne 0 ]]; then false; fi
+
+draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+sleep 1
+
+# ==================================================
+# STEP 8 – Kasten K10
+# ==================================================
+CURRENT_STEP=8
+CURRENT_TITLE="INSTALLING KASTEN K10"
+
+draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+
+set +e
+source ./steps/08-kasten.sh
+rc=$?
+set -e
+
+if [[ $rc -ne 0 ]]; then false; fi
+
+draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 1
 
 # --------------------------------------------------
@@ -132,4 +183,3 @@ draw_step "$TOTAL_STEPS" "$TOTAL_STEPS" "INSTALLATION COMPLETED" 100
 sleep 2
 
 exit 0
-
