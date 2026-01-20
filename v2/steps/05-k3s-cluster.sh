@@ -27,15 +27,34 @@ wait_nodes_ready() {
 }
 
 # --------------------------------------------------
-# Install LXD (snap-based, correct way)
+# Install LXD (snap)
 # --------------------------------------------------
 if ! sudo snap list lxd >/dev/null 2>&1; then
   run_bg sudo snap install lxd
 fi
 
-# Init LXD (idempotent)
-if ! sudo lxc profile list >/dev/null 2>&1; then
+# Give snap some time
+sleep 5
+
+# --------------------------------------------------
+# Initialize LXD (non-interactive)
+# --------------------------------------------------
+if ! sudo lxc storage list >/dev/null 2>&1; then
   run_bg sudo lxd init --auto
+fi
+
+# --------------------------------------------------
+# Ensure default storage pool exists
+# --------------------------------------------------
+if ! sudo lxc storage list | awk '{print $1}' | grep -qx default; then
+  run_bg sudo lxc storage create default dir
+fi
+
+# --------------------------------------------------
+# Ensure default network exists
+# --------------------------------------------------
+if ! sudo lxc network list | awk '{print $1}' | grep -qx lxdbr0; then
+  run_bg sudo lxc network create lxdbr0
 fi
 
 sleep 5
