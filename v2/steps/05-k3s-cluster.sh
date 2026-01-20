@@ -49,18 +49,19 @@ sleep 5
 run_bg sudo lxd init --auto || true
 
 # --------------------------------------------------
-# Ensure storage pool exists (REQUIRED)
+# Ensure LXD storage pool exists and is usable
 # --------------------------------------------------
-if ! sudo lxc storage list | awk '{print $1}' | grep -qx default; then
+
+if sudo lxc storage list | awk '{print $1}' | grep -qx default; then
+  # Pool exists → verify it has a source
+  if ! sudo lxc storage show default | grep -q "^source:"; then
+    run_bg sudo lxc storage set default source=/var/snap/lxd/common/lxd/storage-pools/default
+  fi
+else
+  # Pool does NOT exist → create it
   run_bg sudo lxc storage create default dir
 fi
 
-# --------------------------------------------------
-# Ensure storage pool is usable
-# --------------------------------------------------
-if ! sudo lxc storage show default | grep -q "source:"; then
-  run_bg sudo lxc storage set default source=/var/snap/lxd/common/lxd/storage-pools/default
-fi
 
 # --------------------------------------------------
 # Ensure network exists
