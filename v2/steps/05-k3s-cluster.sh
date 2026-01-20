@@ -45,11 +45,12 @@ sleep 5
 # --------------------------------------------------
 for n in "${NODES[@]}"; do
   if ! sudo lxc list -c n --format csv | grep -qx "$n"; then
-    run_bg sudo lxc launch images:ubuntu/22.04 "$n"
+    run_bg sudo lxc launch ubuntu:22.04 "$n"
     run_bg sudo lxc config set "$n" security.privileged true
     run_bg sudo lxc config set "$n" security.nesting true
   fi
 done
+
 
 sleep 5
 
