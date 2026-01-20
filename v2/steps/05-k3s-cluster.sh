@@ -27,15 +27,18 @@ wait_nodes_ready() {
 }
 
 # --------------------------------------------------
-# Install LXD (host)
+# Install LXD (snap-based, correct way)
 # --------------------------------------------------
-run_bg sudo apt-get update
-run_bg sudo apt-get install -y lxd
+if ! sudo snap list lxd >/dev/null 2>&1; then
+  run_bg sudo snap install lxd
+fi
 
-# Init LXD if needed
+# Init LXD (idempotent)
 if ! sudo lxc profile list >/dev/null 2>&1; then
   run_bg sudo lxd init --auto
 fi
+
+sleep 5
 
 # --------------------------------------------------
 # Create containers (privileged + nesting)
