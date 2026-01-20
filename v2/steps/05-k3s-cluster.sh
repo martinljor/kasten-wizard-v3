@@ -34,31 +34,41 @@ wait_nodes_ready() {
 }
 
 # --------------------------------------------------
-# Install LXD (snap-based)
+# Install LXD (snap)
 # --------------------------------------------------
 if ! sudo snap list lxd >/dev/null 2>&1; then
   run_bg sudo snap install lxd
 fi
 
-# Allow snap services to settle
+# Wait for snap services
 sleep 5
 
 # --------------------------------------------------
-# Initialize LXD (non-interactive, idempotent)
+# Initialize LXD (non-interactive)
 # --------------------------------------------------
-if ! sudo lxc storage list >/dev/null 2>&1; then
-  run_bg sudo lxd init --auto
-fi
+run_bg sudo lxd init --auto || true
 
-# Ensure default storage pool exists
+# --------------------------------------------------
+# Ensure storage pool exists (REQUIRED)
+# --------------------------------------------------
 if ! sudo lxc storage list | awk '{print $1}' | grep -qx default; then
   run_bg sudo lxc storage create default dir
 fi
 
-# Ensure default network exists
+# --------------------------------------------------
+# Ensure storage pool is usable
+# --------------------------------------------------
+if ! sudo lxc storage show default | grep -q "source:"; then
+  run_bg sudo lxc storage set default source=/var/snap/lxd/common/lxd/storage-pools/default
+fi
+
+# --------------------------------------------------
+# Ensure network exists
+# --------------------------------------------------
 if ! sudo lxc network list | awk '{print $1}' | grep -qx lxdbr0; then
   run_bg sudo lxc network create lxdbr0
 fi
+
 
 # --------------------------------------------------
 # Create containers (privileged + nesting)
