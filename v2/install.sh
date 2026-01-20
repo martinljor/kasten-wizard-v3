@@ -12,14 +12,15 @@ source ./ui.sh
 # --------------------------------------------------
 LOG_DIR="/var/log/k10-mj"
 LOG_FILE="$LOG_DIR/kubernetes-lab-installer.log"
-mkdir -p "$LOG_DIR"
-touch "$LOG_FILE"
+sudo mkdir -p "$LOG_DIR"
+sudo touch "$LOG_FILE"
+sudo chmod 644 "$LOG_FILE"
 
 # --------------------------------------------------
 # run_bg (exported for sourced steps)
 # --------------------------------------------------
 run_bg() {
-  echo "[$(date '+%F %T')] $*" >> "$LOG_FILE"
+  echo "[$(date '+%F %T')] $*" | sudo tee -a "$LOG_FILE" >/dev/null
   "$@" >> "$LOG_FILE" 2>&1
 }
 export -f run_bg
@@ -28,7 +29,7 @@ export LOG_FILE
 # --------------------------------------------------
 # Wizard state
 # --------------------------------------------------
-TOTAL_STEPS=8
+TOTAL_STEPS=6
 CURRENT_STEP=0
 CURRENT_TITLE=""
 
@@ -36,7 +37,7 @@ CURRENT_TITLE=""
 # Cleanup
 # --------------------------------------------------
 cleanup() {
-  enable_terminal_input
+  enable_terminal_input || true
   clear
   echo "script finished. See more details on $LOG_FILE"
 }
@@ -79,7 +80,7 @@ draw_step 2 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 1
 
 # ==================================================
-# STEP 3 – Docker
+# STEP 3 – Docker (optional, keep if you want)
 # ==================================================
 CURRENT_STEP=3
 CURRENT_TITLE="INSTALLING DOCKER ENGINE"
@@ -105,75 +106,29 @@ draw_step 4 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 1
 
 # ==================================================
-# STEP 5 – Kubernetes Cluster (k3d)
+# STEP 5 – k3s cluster (3 nodes via LXD)
 # ==================================================
 CURRENT_STEP=5
-CURRENT_TITLE="CREATING KUBERNETES CLUSTER"
+CURRENT_TITLE="CREATING K3S CLUSTER (3 NODES)"
 
 draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-
-set +e
-source ./steps/05-k3d-cluster.sh
+source ./steps/05-k3s-cluster.sh
 rc=$?
-set -e
-
 if [[ $rc -ne 0 ]]; then false; fi
-
 draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 1
 
 # ==================================================
-# STEP 6 – Storage (Longhorn)
+# STEP 6 – OpenEBS ZFS LocalPV (CSI)
 # ==================================================
 CURRENT_STEP=6
-CURRENT_TITLE="INSTALLING STORAGE (LONGHORN)"
+CURRENT_TITLE="INSTALLING OPENEBS ZFS CSI"
 
 draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-
-set +e
-source ./steps/06-storage-longhorn.sh
+source ./steps/06-storage-openebs-zfs.sh
 rc=$?
-set -e
-
 if [[ $rc -ne 0 ]]; then false; fi
-
 draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
-sleep 1
-
-# ==================================================
-# STEP 7 – MinIO (S3)
-# ==================================================
-CURRENT_STEP=7
-CURRENT_TITLE="DEPLOYING MINIO (S3)"
-
-draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-
-set +e
-source ./steps/07-minio.sh
-rc=$?
-set -e
-
-if [[ $rc -ne 0 ]]; then false; fi
-
-draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
-sleep 1
-
-# ==================================================
-# STEP 8 – Kasten K10
-# ==================================================
-CURRENT_STEP=8
-CURRENT_TITLE="INSTALLING KASTEN K10"
-
-draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-
-set +e
-source ./steps/08-kasten.sh
-rc=$?
-set -e
-
-if [[ $rc -ne 0 ]]; then false; fi
-
-draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 1
 
 # --------------------------------------------------
