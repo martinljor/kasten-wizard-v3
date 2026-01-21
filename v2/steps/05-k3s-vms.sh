@@ -37,8 +37,11 @@ draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" 10
 # --------------------------------------------------
 # Ensure base image
 # --------------------------------------------------
+
 if [[ ! -f "$BASE_IMG" ]]; then
-  run_bg sudo wget -O "$BASE_IMG" "$BASE_URL"
+run_bg sudo mkdir -p /var/lib/libvirt/images
+run_bg sudo chown root:root /var/lib/libvirt/images
+run_bg sudo wget -O "$BASE_IMG" "$BASE_URL"
 fi
 
 draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" 30
