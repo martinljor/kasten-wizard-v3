@@ -106,30 +106,15 @@ draw_step 4 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 1
 
 # ==================================================
-# STEP 5 – k3s cluster (3 nodes via LXD)
+# STEP 5 – Kubernetes Cluster (VMs)
 # ==================================================
 CURRENT_STEP=5
-CURRENT_TITLE="CREATING K3S CLUSTER (3 NODES)"
+CURRENT_TITLE="CREATING K3S CLUSTER (VMS)"
 
 draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-source ./steps/05-k3s-cluster.sh
+source ./steps/05-k3s-vms.sh
 rc=$?
 if [[ $rc -ne 0 ]]; then false; fi
-draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
-sleep 1
-
-# ==================================================
-# STEP 6 – OpenEBS ZFS LocalPV (CSI)
-# ==================================================
-CURRENT_STEP=6
-CURRENT_TITLE="INSTALLING OPENEBS ZFS CSI"
-
-draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-source ./steps/06-storage-openebs-zfs.sh
-rc=$?
-if [[ $rc -ne 0 ]]; then false; fi
-draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
-sleep 1
 
 # --------------------------------------------------
 # Final
