@@ -2,7 +2,7 @@
 set -u
 
 # --------------------------------------------------
-# Configuration
+# Config
 # --------------------------------------------------
 LXD_IMAGE="ubuntu:22.04"
 NODES=("k3s-1" "k3s-2" "k3s-3")
@@ -18,7 +18,7 @@ lxd_exec() {
 }
 
 wait_nodes_ready() {
-  echo "[INFO] Waiting for 3 nodes Ready..." >> "$LOG_FILE"
+  echo "[INFO] Waiting for all nodes Ready..." >> "$LOG_FILE"
   while true; do
     COUNT=$(sudo kubectl get nodes --no-headers 2>>"$LOG_FILE" | wc -l | tr -d ' ')
     NOT_READY=$(sudo kubectl get nodes --no-headers 2>>"$LOG_FILE" \
@@ -34,22 +34,27 @@ wait_nodes_ready() {
 }
 
 # --------------------------------------------------
+# Host prerequisites (kernel modules)
+# --------------------------------------------------
+sudo modprobe br_netfilter
+sudo modprobe overlay
+echo -e "br_netfilter\noverlay" | sudo tee /etc/modules-load.d/k3s.conf >/dev/null
+
+# --------------------------------------------------
 # Install LXD (snap)
 # --------------------------------------------------
 if ! sudo snap list lxd >/dev/null 2>&1; then
   run_bg sudo snap install lxd
 fi
-
-# Allow snap services to settle
 sleep 5
 
 # --------------------------------------------------
-# Initialize LXD (NON-interactive)
+# Init LXD (non-interactive)
 # --------------------------------------------------
 run_bg sudo lxd init --auto
 
 # --------------------------------------------------
-# Create containers (privileged + nesting)
+# Create containers
 # --------------------------------------------------
 for n in "${NODES[@]}"; do
   if ! sudo lxc list -c n --format csv | grep -qx "$n"; then
@@ -58,12 +63,10 @@ for n in "${NODES[@]}"; do
     run_bg sudo lxc config set "$n" security.nesting true
   fi
 done
-
-# Give containers time to boot
 sleep 5
 
 # --------------------------------------------------
-# Prerequisites inside each node
+# Prereqs inside containers
 # --------------------------------------------------
 for n in "${NODES[@]}"; do
   lxd_exec "$n" "apt-get update"
@@ -72,21 +75,22 @@ for n in "${NODES[@]}"; do
 done
 
 # --------------------------------------------------
-# Install k3s server (latest stable)
+# Install k3s server
 # --------------------------------------------------
-lxd_exec "$SERVER_NODE" \
-  "systemctl is-active --quiet k3s || \
-   (curl -sfL https://get.k3s.io | sh -s - server --disable traefik)"
+lxd_exec "$SERVER_NODE" "
+  systemctl is-active --quiet k3s || \
+  (curl -sfL https://get.k3s.io | sh -s - server --disable traefik)
+"
 
 # --------------------------------------------------
-# Retrieve server IP and join token
+# Get server IP and token
 # --------------------------------------------------
 SERVER_IP="$(sudo lxc list "$SERVER_NODE" -c 4 --format csv | awk '{print $1}' | cut -d' ' -f1)"
 TOKEN="$(sudo lxc exec "$SERVER_NODE" -- bash -lc \
-  "cat /var/lib/rancher/k3s/server/node-token" 2>>"$LOG_FILE" | tr -d '\r')"
+  "cat /var/lib/rancher/k3s/server/node-token" | tr -d '\r')"
 
 # --------------------------------------------------
-# Configure kubeconfig on host (root)
+# Kubeconfig to host
 # --------------------------------------------------
 run_bg sudo mkdir -p /root/.kube
 run_bg sudo lxc file pull "$SERVER_NODE/etc/rancher/k3s/k3s.yaml" /root/.kube/config
@@ -94,24 +98,45 @@ run_bg sudo sed -i "s/127.0.0.1/${SERVER_IP}/g" /root/.kube/config
 run_bg sudo chmod 600 /root/.kube/config
 
 # --------------------------------------------------
-# Install k3s agents (LXD FIX: node-ip + flannel iface)
+# Install + fix k3s agents
 # --------------------------------------------------
 for n in "${AGENT_NODES[@]}"; do
   NODE_IP="$(sudo lxc list "$n" -c 4 --format csv | awk '{print $1}' | cut -d' ' -f1)"
 
   lxd_exec "$n" "
-    systemctl is-active --quiet k3s-agent || \
-    (K3S_URL=https://${SERVER_IP}:6443 \
-     K3S_TOKEN=${TOKEN} \
-     curl -sfL https://get.k3s.io | sh -s - agent \
-       --node-name ${n} \
-       --node-ip ${NODE_IP} \
-       --flannel-iface eth0)
+    systemctl stop k3s-agent 2>/dev/null || true
+    mkdir -p /etc/systemd/system/k3s-agent.service.d
+
+    cat >/etc/systemd/system/k3s-agent.service <<EOF
+[Unit]
+Description=Lightweight Kubernetes
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+Restart=always
+RestartSec=5s
+ExecStart=/usr/local/bin/k3s agent \
+  --server https://${SERVER_IP}:6443 \
+  --token ${TOKEN} \
+  --node-name ${n} \
+  --node-ip ${NODE_IP} \
+  --flannel-iface eth0
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reexec
+    systemctl daemon-reload
+    systemctl enable k3s-agent
+    systemctl restart k3s-agent
   "
 done
 
 # --------------------------------------------------
-# Wait for all nodes to be Ready
+# Wait for nodes
 # --------------------------------------------------
 wait_nodes_ready
 
