@@ -40,36 +40,13 @@ if ! sudo snap list lxd >/dev/null 2>&1; then
   run_bg sudo snap install lxd
 fi
 
-# Wait for snap services
+# Allow snap services to settle
 sleep 5
 
 # --------------------------------------------------
-# Initialize LXD (non-interactive)
+# Initialize LXD (NON-interactive)
 # --------------------------------------------------
-run_bg sudo lxd init --auto || true
-
-# --------------------------------------------------
-# Ensure LXD storage pool exists and is usable
-# --------------------------------------------------
-
-if sudo lxc storage list | awk '{print $1}' | grep -qx default; then
-  # Pool exists → verify it has a source
-  if ! sudo lxc storage show default | grep -q "^source:"; then
-    run_bg sudo lxc storage set default source=/var/snap/lxd/common/lxd/storage-pools/default
-  fi
-else
-  # Pool does NOT exist → create it
-  run_bg sudo lxc storage create default dir
-fi
-
-
-# --------------------------------------------------
-# Ensure network exists
-# --------------------------------------------------
-if ! sudo lxc network list | awk '{print $1}' | grep -qx lxdbr0; then
-  run_bg sudo lxc network create lxdbr0
-fi
-
+run_bg sudo lxd init --auto
 
 # --------------------------------------------------
 # Create containers (privileged + nesting)
@@ -95,17 +72,18 @@ for n in "${NODES[@]}"; do
 done
 
 # --------------------------------------------------
-# Install k3s server
+# Install k3s server (latest stable)
 # --------------------------------------------------
 lxd_exec "$SERVER_NODE" \
-  "systemctl is-active --quiet k3s || (curl -sfL https://get.k3s.io | sh -s - server --disable traefik)"
+  "systemctl is-active --quiet k3s || \
+   (curl -sfL https://get.k3s.io | sh -s - server --disable traefik)"
 
 # --------------------------------------------------
 # Retrieve server IP and join token
 # --------------------------------------------------
 SERVER_IP="$(sudo lxc list "$SERVER_NODE" -c 4 --format csv | awk '{print $1}' | cut -d' ' -f1)"
-TOKEN="$(sudo lxc exec "$SERVER_NODE" -- bash -lc "cat /var/lib/rancher/k3s/server/node-token" \
-  2>>"$LOG_FILE" | tr -d '\r')"
+TOKEN="$(sudo lxc exec "$SERVER_NODE" -- bash -lc \
+  "cat /var/lib/rancher/k3s/server/node-token" 2>>"$LOG_FILE" | tr -d '\r')"
 
 # --------------------------------------------------
 # Configure kubeconfig on host (root)
@@ -116,13 +94,20 @@ run_bg sudo sed -i "s/127.0.0.1/${SERVER_IP}/g" /root/.kube/config
 run_bg sudo chmod 600 /root/.kube/config
 
 # --------------------------------------------------
-# Install k3s agents
+# Install k3s agents (LXD FIX: node-ip + flannel iface)
 # --------------------------------------------------
 for n in "${AGENT_NODES[@]}"; do
-  lxd_exec "$n" \
-    "systemctl is-active --quiet k3s-agent || \
-     (K3S_URL=https://${SERVER_IP}:6443 K3S_TOKEN=${TOKEN} \
-      curl -sfL https://get.k3s.io | sh -s - agent --node-name ${n})"
+  NODE_IP="$(sudo lxc list "$n" -c 4 --format csv | awk '{print $1}' | cut -d' ' -f1)"
+
+  lxd_exec "$n" "
+    systemctl is-active --quiet k3s-agent || \
+    (K3S_URL=https://${SERVER_IP}:6443 \
+     K3S_TOKEN=${TOKEN} \
+     curl -sfL https://get.k3s.io | sh -s - agent \
+       --node-name ${n} \
+       --node-ip ${NODE_IP} \
+       --flannel-iface eth0)
+  "
 done
 
 # --------------------------------------------------
