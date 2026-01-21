@@ -2,142 +2,161 @@
 set -u
 
 # --------------------------------------------------
-# Config
+# Step metadata (wizard)
 # --------------------------------------------------
-LXD_IMAGE="ubuntu:22.04"
-NODES=("k3s-1" "k3s-2" "k3s-3")
-SERVER_NODE="k3s-1"
-AGENT_NODES=("k3s-2" "k3s-3")
+STEP_NUM=5
+STEP_TITLE="CREATING K3S CLUSTER (VMS)"
 
 # --------------------------------------------------
-# Helpers
+# Configuration
 # --------------------------------------------------
-lxd_exec() {
-  local node="$1"; shift
-  sudo lxc exec "$node" -- bash -lc "$*" >> "$LOG_FILE" 2>&1
-}
+VM_DIR="/var/lib/libvirt/images"
+CLOUDINIT_DIR="/var/lib/libvirt/cloudinit"
+BASE_IMG="${VM_DIR}/ubuntu-22.04.qcow2"
 
-wait_nodes_ready() {
-  echo "[INFO] Waiting for all nodes Ready..." >> "$LOG_FILE"
-  while true; do
-    COUNT=$(sudo kubectl get nodes --no-headers 2>>"$LOG_FILE" | wc -l | tr -d ' ')
-    NOT_READY=$(sudo kubectl get nodes --no-headers 2>>"$LOG_FILE" \
-      | awk '{print $2}' | grep -v "Ready" || true)
+MASTER_NAME="k3s-master"
+WORKERS=("k3s-worker1" "k3s-worker2")
 
-    if [[ "$COUNT" -ge 3 && -z "$NOT_READY" ]]; then
-      break
-    fi
-
-    sudo kubectl get nodes >> "$LOG_FILE" 2>&1 || true
-    sleep 10
-  done
-}
+MASTER_RAM=3072
+WORKER_RAM=3072
+VCPU=2
 
 # --------------------------------------------------
-# Host prerequisites (kernel modules)
+# Progress: 10% – Dependencies
 # --------------------------------------------------
-sudo modprobe br_netfilter
-sudo modprobe overlay
-echo -e "br_netfilter\noverlay" | sudo tee /etc/modules-load.d/k3s.conf >/dev/null
+draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" 10
+
+run_bg sudo apt-get update
+run_bg sudo apt-get install -y \
+  qemu-kvm libvirt-daemon-system libvirt-clients \
+  virtinst cloud-image-utils bridge-utils
+
+run_bg sudo systemctl enable --now libvirtd
 
 # --------------------------------------------------
-# Install LXD (snap)
+# Progress: 25% – Base image
 # --------------------------------------------------
-if ! sudo snap list lxd >/dev/null 2>&1; then
-  run_bg sudo snap install lxd
+draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" 25
+
+if [[ ! -f "$BASE_IMG" ]]; then
+  run_bg sudo wget -O "$BASE_IMG" \
+    https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
 fi
-sleep 5
+
+run_bg sudo mkdir -p "$CLOUDINIT_DIR"
 
 # --------------------------------------------------
-# Init LXD (non-interactive)
+# Cloud-init templates
 # --------------------------------------------------
-run_bg sudo lxd init --auto
+create_cloudinit() {
+  local name="$1"
+  local role="$2"
 
-# --------------------------------------------------
-# Create containers
-# --------------------------------------------------
-for n in "${NODES[@]}"; do
-  if ! sudo lxc list -c n --format csv | grep -qx "$n"; then
-    run_bg sudo lxc launch "$LXD_IMAGE" "$n"
-    run_bg sudo lxc config set "$n" security.privileged true
-    run_bg sudo lxc config set "$n" security.nesting true
-  fi
-done
-sleep 5
+  cat <<EOF | sudo tee "${CLOUDINIT_DIR}/${name}.yaml" >/dev/null
+#cloud-config
+hostname: ${name}
+manage_etc_hosts: true
 
-# --------------------------------------------------
-# Prereqs inside containers
-# --------------------------------------------------
-for n in "${NODES[@]}"; do
-  lxd_exec "$n" "apt-get update"
-  lxd_exec "$n" "apt-get install -y curl ca-certificates open-iscsi nfs-common"
-  lxd_exec "$n" "systemctl enable --now iscsid || true"
-done
+package_update: true
+packages:
+  - curl
+  - open-iscsi
+  - nfs-common
 
-# --------------------------------------------------
-# Install k3s server
-# --------------------------------------------------
-lxd_exec "$SERVER_NODE" "
-  systemctl is-active --quiet k3s || \
-  (curl -sfL https://get.k3s.io | sh -s - server --disable traefik)
-"
-
-# --------------------------------------------------
-# Get server IP and token
-# --------------------------------------------------
-SERVER_IP="$(sudo lxc list "$SERVER_NODE" -c 4 --format csv | awk '{print $1}' | cut -d' ' -f1)"
-TOKEN="$(sudo lxc exec "$SERVER_NODE" -- bash -lc \
-  "cat /var/lib/rancher/k3s/server/node-token" | tr -d '\r')"
-
-# --------------------------------------------------
-# Kubeconfig to host
-# --------------------------------------------------
-run_bg sudo mkdir -p /root/.kube
-run_bg sudo lxc file pull "$SERVER_NODE/etc/rancher/k3s/k3s.yaml" /root/.kube/config
-run_bg sudo sed -i "s/127.0.0.1/${SERVER_IP}/g" /root/.kube/config
-run_bg sudo chmod 600 /root/.kube/config
-
-# --------------------------------------------------
-# Install + fix k3s agents
-# --------------------------------------------------
-for n in "${AGENT_NODES[@]}"; do
-  NODE_IP="$(sudo lxc list "$n" -c 4 --format csv | awk '{print $1}' | cut -d' ' -f1)"
-
-  lxd_exec "$n" "
-    systemctl stop k3s-agent 2>/dev/null || true
-    mkdir -p /etc/systemd/system/k3s-agent.service.d
-
-    cat >/etc/systemd/system/k3s-agent.service <<EOF
-[Unit]
-Description=Lightweight Kubernetes
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=notify
-Restart=always
-RestartSec=5s
-ExecStart=/usr/local/bin/k3s agent \
-  --server https://${SERVER_IP}:6443 \
-  --token ${TOKEN} \
-  --node-name ${n} \
-  --node-ip ${NODE_IP} \
-  --flannel-iface eth0
-
-[Install]
-WantedBy=multi-user.target
+runcmd:
+  - systemctl enable --now iscsid
+  - |
+    if [ "${role}" = "master" ]; then
+      curl -sfL https://get.k3s.io | sh -s - server --disable traefik
+    fi
 EOF
+}
 
-    systemctl daemon-reexec
-    systemctl daemon-reload
-    systemctl enable k3s-agent
-    systemctl restart k3s-agent
+create_cloudinit "$MASTER_NAME" "master"
+for w in "${WORKERS[@]}"; do
+  create_cloudinit "$w" "worker"
+done
+
+# --------------------------------------------------
+# Progress: 45% – Create VMs
+# --------------------------------------------------
+draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" 45
+
+create_vm() {
+  local name="$1"
+  local ram="$2"
+
+  local disk="${VM_DIR}/${name}.qcow2"
+  local seed="${CLOUDINIT_DIR}/${name}-seed.iso"
+
+  [[ -f "$disk" ]] || run_bg sudo qemu-img create -f qcow2 -F qcow2 -b "$BASE_IMG" "$disk"
+  run_bg sudo cloud-localds "$seed" "${CLOUDINIT_DIR}/${name}.yaml"
+
+  if ! sudo virsh list --all | awk '{print $2}' | grep -qx "$name"; then
+    run_bg sudo virt-install \
+      --name "$name" \
+      --memory "$ram" \
+      --vcpus "$VCPU" \
+      --disk path="$disk",format=qcow2 \
+      --disk path="$seed",device=cdrom \
+      --os-variant ubuntu22.04 \
+      --network network=default \
+      --graphics none \
+      --noautoconsole \
+      --import
+  fi
+}
+
+create_vm "$MASTER_NAME" "$MASTER_RAM"
+for w in "${WORKERS[@]}"; do
+  create_vm "$w" "$WORKER_RAM"
+done
+
+# --------------------------------------------------
+# Progress: 65% – k3s server ready
+# --------------------------------------------------
+draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" 65
+
+echo "[INFO] Waiting for master IP..." >> "$LOG_FILE"
+sleep 60
+
+MASTER_IP=$(sudo virsh domifaddr "$MASTER_NAME" \
+  | awk '/ipv4/ {print $4}' | cut -d/ -f1)
+
+# --------------------------------------------------
+# Progress: 85% – Join workers
+# --------------------------------------------------
+draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" 85
+
+TOKEN=$(ssh -o StrictHostKeyChecking=no \
+  ubuntu@"$MASTER_IP" \
+  sudo cat /var/lib/rancher/k3s/server/node-token)
+
+for w in "${WORKERS[@]}"; do
+  IP=$(sudo virsh domifaddr "$w" | awk '/ipv4/ {print $4}' | cut -d/ -f1)
+
+  ssh -o StrictHostKeyChecking=no ubuntu@"$IP" "
+    curl -sfL https://get.k3s.io | \
+    K3S_URL=https://${MASTER_IP}:6443 \
+    K3S_TOKEN=${TOKEN} \
+    sh -
   "
 done
 
 # --------------------------------------------------
-# Wait for nodes
+# Kubeconfig
 # --------------------------------------------------
-wait_nodes_ready
+run_bg sudo mkdir -p /root/.kube
+ssh -o StrictHostKeyChecking=no ubuntu@"$MASTER_IP" \
+  sudo cat /etc/rancher/k3s/k3s.yaml \
+  | sed "s/127.0.0.1/${MASTER_IP}/g" \
+  | sudo tee /root/.kube/config >/dev/null
+
+run_bg sudo chmod 600 /root/.kube/config
+
+# --------------------------------------------------
+# Progress: 100% – Nodes Ready
+# --------------------------------------------------
+draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" 100
 
 return 0
