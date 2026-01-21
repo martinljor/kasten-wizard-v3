@@ -115,13 +115,28 @@ done
 # --------------------------------------------------
 # Progress: 65% – k3s server ready
 # --------------------------------------------------
-draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" 65
-
+draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" 75
 echo "[INFO] Waiting for master IP..." >> "$LOG_FILE"
-sleep 60
 
-MASTER_IP=$(sudo virsh domifaddr "$MASTER_NAME" \
-  | awk '/ipv4/ {print $4}' | cut -d/ -f1)
+MASTER_IP=""
+for i in {1..30}; do
+  MASTER_IP=$(sudo virsh domifaddr "$MASTER_NAME" \
+    | awk '/ipv4/ {print $4}' | cut -d/ -f1)
+
+  if [[ -n "$MASTER_IP" ]]; then
+    echo "[INFO] Master IP detected: $MASTER_IP" >> "$LOG_FILE"
+    break
+  fi
+
+  echo "[INFO] Master IP not ready yet (attempt $i)..." >> "$LOG_FILE"
+  sleep 10
+done
+
+if [[ -z "$MASTER_IP" ]]; then
+  echo "[ERROR] Timed out waiting for master IP" >> "$LOG_FILE"
+  return 1
+fi
+
 
 # --------------------------------------------------
 # Progress: 85% – Join workers
