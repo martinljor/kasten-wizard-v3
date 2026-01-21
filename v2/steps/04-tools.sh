@@ -21,7 +21,14 @@ run_bg apt-get install -y \
   curl \
   gpg \
   apt-transport-https \
-  ca-certificates
+  ca-certificates \
+  qemu-kvm \
+  qemu-utils \
+  libvirt-daemon-system \
+  libvirt-clients \
+  virtinst \
+  cloud-image-utils \
+  bridge-utils
 draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" 30
 
 # -------------------------------------------------
