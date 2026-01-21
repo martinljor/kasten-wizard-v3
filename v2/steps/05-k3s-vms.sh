@@ -189,3 +189,5 @@ draw_step 5 5 "$STEP_TITLE" 100
 log "K3s cluster creation completed"
 
 return 0
+
+
