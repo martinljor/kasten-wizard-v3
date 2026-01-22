@@ -138,8 +138,10 @@ create_vm() {
 
   log "Creating VM $name"
 
-  run_bg sudo qemu-img create -f qcow2 -b "$BASE_IMG" \
-    "$IMG_DIR/$name.qcow2"
+run_bg sudo rm -f "$IMG_DIR/$name.qcow2"
+run_bg sudo qemu-img create -f qcow2 -F qcow2 -b "$BASE_IMG" \
+  "$IMG_DIR/$name.qcow2"
+
 
   run_bg sudo virt-install \
     --name "$name" \
