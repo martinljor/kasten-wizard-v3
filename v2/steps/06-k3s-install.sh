@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-STEP_NUM=6
+STEP_NUM=5
 STEP_TITLE="INSTALLING K3S CLUSTER"
 
 progress() {
@@ -13,7 +13,21 @@ log() {
 }
 
 # --------------------------------------------------
-# IPs (desde libvirt)
+# Helpers
+# --------------------------------------------------
+wait_ssh() {
+  local ip="$1"
+  for i in {1..30}; do
+    if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=3 ubuntu@"$ip" "echo ok" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+# --------------------------------------------------
+# Resolve IPs
 # --------------------------------------------------
 MASTER_IP=$(sudo virsh domifaddr k3s-master | awk '/ipv4/ {print $4}' | cut -d/ -f1)
 W1_IP=$(sudo virsh domifaddr k3s-worker1 | awk '/ipv4/ {print $4}' | cut -d/ -f1)
@@ -25,17 +39,21 @@ if [[ -z "$MASTER_IP" || -z "$W1_IP" || -z "$W2_IP" ]]; then
 fi
 
 progress 10
-log "Installing k3s server on master ($MASTER_IP)"
+log "Waiting for SSH availability"
+wait_ssh "$MASTER_IP" || { log "ERROR: SSH not ready on master"; return 1; }
+wait_ssh "$W1_IP"     || { log "ERROR: SSH not ready on worker1"; return 1; }
+wait_ssh "$W2_IP"     || { log "ERROR: SSH not ready on worker2"; return 1; }
 
 # --------------------------------------------------
 # Install k3s server
 # --------------------------------------------------
+progress 25
+log "Installing k3s server on master ($MASTER_IP)"
 run_bg sudo ssh -o StrictHostKeyChecking=no ubuntu@"$MASTER_IP" \
-  "curl -sfL https://get.k3s.io | sh -s - server --disable traefik"
+  "curl -sfL https://get.k3s.io | sudo sh -s - server --disable traefik"
 
-progress 35
-log "Waiting for k3s server to be ready"
-
+progress 45
+log "Waiting for k3s server to initialize"
 sleep 20
 
 # --------------------------------------------------
@@ -49,43 +67,31 @@ if [[ -z "$TOKEN" ]]; then
   return 1
 fi
 
-progress 55
+# --------------------------------------------------
+# Join workers
+# --------------------------------------------------
+progress 60
 log "Joining worker1 ($W1_IP)"
-
-# --------------------------------------------------
-# Join worker1
-# --------------------------------------------------
 run_bg sudo ssh -o StrictHostKeyChecking=no ubuntu@"$W1_IP" \
-  "curl -sfL https://get.k3s.io | K3S_URL=https://$MASTER_IP:6443 K3S_TOKEN=$TOKEN sh -"
+  "curl -sfL https://get.k3s.io | sudo K3S_URL=https://$MASTER_IP:6443 K3S_TOKEN=$TOKEN sh -"
 
-progress 70
+progress 75
 log "Joining worker2 ($W2_IP)"
-
-# --------------------------------------------------
-# Join worker2
-# --------------------------------------------------
 run_bg sudo ssh -o StrictHostKeyChecking=no ubuntu@"$W2_IP" \
-  "curl -sfL https://get.k3s.io | K3S_URL=https://$MASTER_IP:6443 K3S_TOKEN=$TOKEN sh -"
-
-progress 85
-log "Fetching kubeconfig"
+  "curl -sfL https://get.k3s.io | sudo K3S_URL=https://$MASTER_IP:6443 K3S_TOKEN=$TOKEN sh -"
 
 # --------------------------------------------------
 # Kubeconfig
 # --------------------------------------------------
+progress 90
+log "Fetching kubeconfig"
 run_bg sudo mkdir -p /root/.kube
 run_bg sudo ssh -o StrictHostKeyChecking=no ubuntu@"$MASTER_IP" \
   "sudo cat /etc/rancher/k3s/k3s.yaml" \
   | sed "s/127.0.0.1/$MASTER_IP/g" \
   | sudo tee /root/.kube/config >/dev/null
-
 run_bg sudo chmod 600 /root/.kube/config
-
-progress 95
-log "Waiting for nodes to register"
-sleep 20
 
 progress 100
 log "STEP 06 completed successfully"
-
 return 0
