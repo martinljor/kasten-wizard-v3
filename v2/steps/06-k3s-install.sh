@@ -18,6 +18,7 @@ log() {
 wait_ssh() {
   local ip="$1"
   for i in {1..30}; do
+  run_bg echo "Trying with IP $ip"
     if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=3 ubuntu@"$ip" "echo ok" >/dev/null 2>&1; then
       return 0
     fi
