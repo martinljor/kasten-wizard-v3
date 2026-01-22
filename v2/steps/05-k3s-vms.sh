@@ -20,7 +20,7 @@ cleanup_vm() {
   if sudo virsh dominfo "$vm" >/dev/null 2>&1; then
     log "Removing existing VM $vm"
     sudo virsh destroy "$vm" >/dev/null 2>&1 || true
-    sudo virsh undefine "$vm" --remove-all-storage >/dev/null 2>&1 || true
+    sudo virsh undefine "$vm" --remove-all-storage --nvram >/dev/null 2>&1 || true
   fi
 }
 
