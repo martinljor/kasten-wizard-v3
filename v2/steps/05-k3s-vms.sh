@@ -2,7 +2,7 @@
 set -e
 
 STEP_NUM=4
-STEP_TITLE="CREATING VMS FOR K3S"
+STEP_TITLE="CREATING K3S VMS (LIBVIRT)"
 
 progress() {
   draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" "$1"
@@ -13,136 +13,148 @@ log() {
 }
 
 # --------------------------------------------------
-# SSH key (host)
+# Cleanup existing VMs
 # --------------------------------------------------
-SSH_PUB_KEY="$HOME/.ssh/id_rsa.pub"
-if [[ ! -f "$SSH_PUB_KEY" ]]; then
-  log "ERROR: SSH public key not found at $SSH_PUB_KEY"
-  return 1
-fi
-SSH_KEY_CONTENT=$(cat "$SSH_PUB_KEY")
+cleanup_vm() {
+  local vm="$1"
+  if sudo virsh dominfo "$vm" >/dev/null 2>&1; then
+    log "Removing existing VM $vm"
+    sudo virsh destroy "$vm" >/dev/null 2>&1 || true
+    sudo virsh undefine "$vm" --remove-all-storage >/dev/null 2>&1 || true
+  fi
+}
 
-# --------------------------------------------------
-# Architecture detection
-# --------------------------------------------------
-ARCH=$(uname -m)
-IMG_DIR="/var/lib/libvirt/images"
-CI_DIR="/var/lib/libvirt/cloudinit"
-
-if [[ "$ARCH" == "aarch64" ]]; then
-  BASE_IMG="$IMG_DIR/ubuntu-22.04-arm64.img"
-  BASE_URL="https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-arm64.img"
-else
-  BASE_IMG="$IMG_DIR/ubuntu-22.04-amd64.img"
-  BASE_URL="https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
-fi
+progress 5
+cleanup_vm k3s-master
+cleanup_vm k3s-worker1
+cleanup_vm k3s-worker2
 
 # --------------------------------------------------
 # Packages
 # --------------------------------------------------
 progress 10
+log "Installing libvirt packages"
 run_bg sudo apt-get update
 run_bg sudo apt-get install -y \
-  qemu-kvm qemu-utils libvirt-daemon-system \
-  libvirt-clients virtinst cloud-image-utils
+  qemu-kvm \
+  libvirt-daemon-system \
+  libvirt-clients \
+  virtinst \
+  cloud-image-utils
 
 run_bg sudo systemctl enable --now libvirtd
 
 # --------------------------------------------------
-# Images dirs
+# Directories
 # --------------------------------------------------
+IMG_DIR="/var/lib/libvirt/images"
+CI_DIR="/var/lib/libvirt/cloudinit"
 run_bg sudo mkdir -p "$IMG_DIR" "$CI_DIR"
 
-progress 25
-if [[ ! -f "$BASE_IMG" ]]; then
-  log "Downloading Ubuntu base image"
-  run_bg sudo wget -O "$BASE_IMG" "$BASE_URL"
+# --------------------------------------------------
+# Architecture detection
+# --------------------------------------------------
+ARCH=$(uname -m)
+if [[ "$ARCH" == "aarch64" ]]; then
+  UBUNTU_IMG_URL="https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-arm64.img"
+  BASE_IMG="$IMG_DIR/ubuntu-22.04-arm64.img"
+else
+  UBUNTU_IMG_URL="https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+  BASE_IMG="$IMG_DIR/ubuntu-22.04-amd64.img"
 fi
+
+progress 20
+if [[ ! -f "$BASE_IMG" ]]; then
+  log "Downloading Ubuntu cloud image"
+  run_bg sudo wget -O "$BASE_IMG" "$UBUNTU_IMG_URL"
+fi
+
+# --------------------------------------------------
+# SSH key
+# --------------------------------------------------
+SSH_KEY=$(cat "$HOME/.ssh/id_rsa.pub")
 
 # --------------------------------------------------
 # Cloud-init generator
 # --------------------------------------------------
 create_cloudinit() {
-  local NAME="$1"
+  local name="$1"
 
-  cat > "$CI_DIR/$NAME-user-data.yaml" <<EOF
+  cat > "$CI_DIR/$name-user-data.yaml" <<EOF
 #cloud-config
-hostname: $NAME
 users:
   - name: ubuntu
     sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: sudo
     shell: /bin/bash
-    lock_passwd: true
     ssh_authorized_keys:
-      - $SSH_KEY_CONTENT
-ssh_pwauth: false
+      - $SSH_KEY
 packages:
   - qemu-guest-agent
 runcmd:
   - systemctl enable --now qemu-guest-agent
 EOF
 
-  cat > "$CI_DIR/$NAME-meta-data.yaml" <<EOF
-instance-id: $NAME
-local-hostname: $NAME
-EOF
+  echo "instance-id: $name" > "$CI_DIR/$name-meta-data.yaml"
 
-  run_bg sudo cloud-localds "$CI_DIR/$NAME-seed.iso" \
-    "$CI_DIR/$NAME-user-data.yaml" \
-    "$CI_DIR/$NAME-meta-data.yaml"
+  run_bg sudo cloud-localds \
+    "$CI_DIR/$name-seed.iso" \
+    "$CI_DIR/$name-user-data.yaml" \
+    "$CI_DIR/$name-meta-data.yaml"
 }
 
-# --------------------------------------------------
-# Create VMs
-# --------------------------------------------------
-progress 40
-for VM in k3s-master k3s-worker1 k3s-worker2; do
-  log "Preparing VM $VM"
-  create_cloudinit "$VM"
-
-  DISK="$IMG_DIR/$VM.qcow2"
-  if [[ ! -f "$DISK" ]]; then
-    run_bg sudo qemu-img create -f qcow2 -F qcow2 \
-      -b "$BASE_IMG" "$DISK"
-  fi
-
-  if ! sudo virsh dominfo "$VM" &>/dev/null; then
-    run_bg sudo virt-install \
-      --name "$VM" \
-      --memory 3072 \
-      --vcpus 2 \
-      --disk path="$DISK",format=qcow2 \
-      --disk path="$CI_DIR/$VM-seed.iso",device=cdrom \
-      --os-variant ubuntu22.04 \
-      --network network=default \
-      --graphics none \
-      --import \
-      --noautoconsole \
-      --boot uefi,hd,menu=off
-  fi
-done
+progress 35
+log "Preparing cloud-init"
+create_cloudinit k3s-master
+create_cloudinit k3s-worker1
+create_cloudinit k3s-worker2
 
 # --------------------------------------------------
-# Wait for OS + DHCP
+# VM creator
+# --------------------------------------------------
+create_vm() {
+  local name="$1"
+  local mem="$2"
+  local vcpus="$3"
+
+  log "Creating VM $name"
+
+  run_bg sudo qemu-img create -f qcow2 -b "$BASE_IMG" \
+    "$IMG_DIR/$name.qcow2"
+
+  run_bg sudo virt-install \
+    --name "$name" \
+    --memory "$mem" \
+    --vcpus "$vcpus" \
+    --disk path="$IMG_DIR/$name.qcow2",format=qcow2 \
+    --disk path="$CI_DIR/$name-seed.iso",device=cdrom \
+    --os-variant ubuntu22.04 \
+    --network network=default \
+    --graphics none \
+    --import \
+    --noautoconsole
+}
+
+progress 50
+create_vm k3s-master 2048 2
+create_vm k3s-worker1 1536 1
+create_vm k3s-worker2 1536 1
+
+# --------------------------------------------------
+# Ensure VMs are running
 # --------------------------------------------------
 progress 70
-log "Waiting for VMs to finish OS setup"
-sleep 60
-
-progress 90
-ATTEMPTS=0
-while [[ $ATTEMPTS -lt 20 ]]; do
-  IP=$(sudo virsh domifaddr k3s-master | awk '/ipv4/ {print $4}')
-  [[ -n "$IP" ]] && break
-  ATTEMPTS=$((ATTEMPTS+1))
-  log "Master IP not ready yet (attempt $ATTEMPTS)"
-  sleep 10
+log "Starting VMs"
+for vm in k3s-master k3s-worker1 k3s-worker2; do
+  run_bg sudo virsh start "$vm" || true
 done
 
-if [[ -z "$IP" ]]; then
-  log "ERROR: Master IP not obtained"
-  return 1
-fi
+# --------------------------------------------------
+# Boot wait (realistic)
+# --------------------------------------------------
+progress 90
+log "Waiting for VMs to boot (this may take a few minutes)"
+sleep 60
 
 progress 100
 log "STEP 05 completed successfully"
