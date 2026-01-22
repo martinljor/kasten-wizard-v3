@@ -29,9 +29,24 @@ wait_ssh() {
 # --------------------------------------------------
 # Resolve IPs
 # --------------------------------------------------
-MASTER_IP=$(sudo virsh domifaddr k3s-master | awk '/ipv4/ {print $4}' | cut -d/ -f1)
-W1_IP=$(sudo virsh domifaddr k3s-worker1 | awk '/ipv4/ {print $4}' | cut -d/ -f1)
-W2_IP=$(sudo virsh domifaddr k3s-worker2 | awk '/ipv4/ {print $4}' | cut -d/ -f1)
+get_vm_ip() {
+  local vm="$1"
+  for i in {1..30}; do
+    ip=$(sudo virsh domifaddr "$vm" | awk '/ipv4/ {print $4}' | cut -d/ -f1)
+    if [[ -n "$ip" ]]; then
+      echo "$ip"
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+
+MASTER_IP=$(get_vm_ip k3s-master) || return 1
+W1_IP=$(get_vm_ip k3s-worker1)   || return 1
+W2_IP=$(get_vm_ip k3s-worker2)   || return 1
+
 
 if [[ -z "$MASTER_IP" || -z "$W1_IP" || -z "$W2_IP" ]]; then
   log "ERROR: Unable to resolve VM IPs"
