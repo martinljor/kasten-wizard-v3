@@ -74,18 +74,30 @@ fi
 # --------------------------------------------------
 SUDO_USER_HOME=$(eval echo "~$SUDO_USER")
 
+# --------------------------------------------------
+# SSH key handling
+# --------------------------------------------------
 if [[ ! -f "$SUDO_USER_HOME/.ssh/id_rsa.pub" ]]; then
-  echo "[ERROR] SSH public key not found at $SUDO_USER_HOME/.ssh/id_rsa.pub" >> "$LOG_FILE"
-  return 1
+  echo "[INFO] SSH key not found, generating one" >> "$LOG_FILE"
+
+  run_bg sudo -u "$SUDO_USER" mkdir -p "$SUDO_USER_HOME/.ssh"
+  run_bg sudo -u "$SUDO_USER" ssh-keygen -t rsa -b 4096 \
+    -f "$SUDO_USER_HOME/.ssh/id_rsa" \
+    -N ""
 fi
 
 SSH_KEY=$(cat "$SUDO_USER_HOME/.ssh/id_rsa.pub")
 
+run_bg echo $SSH_KEY
 # --------------------------------------------------
 # Cloud-init generator
 # --------------------------------------------------
 create_cloudinit() {
   local name="$1"
+run_bg echo "Start with cloudinit"
+run_bg echo $CI_DIR
+run_bg echo $name
+
 
   cat > "$CI_DIR/$name-user-data.yaml" <<EOF
 #cloud-config
