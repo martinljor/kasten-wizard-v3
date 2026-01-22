@@ -37,7 +37,7 @@ CURRENT_TITLE=""
 # --------------------------------------------------
 cleanup() {
   enable_terminal_input
-  clear
+  #clear
   echo "Script finished. Logs available at:"
   echo "  $LOG_FILE"
 }
