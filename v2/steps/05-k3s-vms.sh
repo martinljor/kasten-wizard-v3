@@ -72,7 +72,14 @@ fi
 # --------------------------------------------------
 # SSH key
 # --------------------------------------------------
-SSH_KEY=$(cat "$HOME/.ssh/id_rsa.pub")
+SUDO_USER_HOME=$(eval echo "~$SUDO_USER")
+
+if [[ ! -f "$SUDO_USER_HOME/.ssh/id_rsa.pub" ]]; then
+  echo "[ERROR] SSH public key not found at $SUDO_USER_HOME/.ssh/id_rsa.pub" >> "$LOG_FILE"
+  return 1
+fi
+
+SSH_KEY=$(cat "$SUDO_USER_HOME/.ssh/id_rsa.pub")
 
 # --------------------------------------------------
 # Cloud-init generator
