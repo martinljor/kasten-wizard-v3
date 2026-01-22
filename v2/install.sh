@@ -28,7 +28,7 @@ export LOG_FILE
 # --------------------------------------------------
 # Wizard state
 # --------------------------------------------------
-TOTAL_STEPS=5
+TOTAL_STEPS=6
 CURRENT_STEP=0
 CURRENT_TITLE=""
 
@@ -61,8 +61,6 @@ CURRENT_TITLE="ENVIRONMENT VALIDATION"
 
 draw_step 1 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
 source ./steps/01-validate.sh
-rc=$?
-if [[ $rc -ne 0 ]]; then false; fi
 draw_step 1 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 1
 
@@ -74,44 +72,49 @@ CURRENT_TITLE="SYSTEM PREPARATION"
 
 draw_step 2 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
 source ./steps/02-system.sh
-rc=$?
-if [[ $rc -ne 0 ]]; then false; fi
 draw_step 2 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 1
 
 # ==================================================
-# STEP 3 – Required Tools (NO Docker)
+# STEP 3 – Required Tools
 # ==================================================
 CURRENT_STEP=3
 CURRENT_TITLE="INSTALLING REQUIRED TOOLS"
 
 draw_step 3 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
 source ./steps/04-tools.sh
-rc=$?
-if [[ $rc -ne 0 ]]; then false; fi
 draw_step 3 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 1
 
 # ==================================================
-# STEP 4 – Kubernetes Cluster (VMs)
+# STEP 4 – VMs for K3s
 # ==================================================
 CURRENT_STEP=4
-CURRENT_TITLE="CREATING K3S CLUSTER (VMS)"
+CURRENT_TITLE="CREATING VMS"
 
 draw_step 4 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
 source ./steps/05-k3s-vms.sh
-rc=$?
-if [[ $rc -ne 0 ]]; then false; fi
 draw_step 4 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 1
 
 # ==================================================
-# STEP 5 – Final
+# STEP 5 – K3s Cluster
 # ==================================================
 CURRENT_STEP=5
+CURRENT_TITLE="INSTALLING K3S CLUSTER"
+
+draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+source ./steps/06-k3s-install.sh
+draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+sleep 1
+
+# ==================================================
+# STEP 6 – Final
+# ==================================================
+CURRENT_STEP=6
 CURRENT_TITLE="INSTALLATION COMPLETED"
 
-draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 2
 
 exit 0
