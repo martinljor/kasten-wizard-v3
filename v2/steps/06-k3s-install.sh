@@ -21,7 +21,7 @@ wait_ssh() {
   local ip="$1"
   for i in {1..30}; do
     run_bg echo "Trying SSH with IP $ip"
-    if ssh $SSH_OPTS ubuntu@"$ip" "echo ok" >/dev/null 2>&1; then
+    if ssh $SSH_OPTS ubuntu@"$ip" true >/dev/null 2>&1; then
       return 0
     fi
     sleep 5
