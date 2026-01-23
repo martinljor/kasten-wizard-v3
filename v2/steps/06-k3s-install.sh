@@ -4,6 +4,8 @@ set -e
 STEP_NUM=5
 STEP_TITLE="INSTALLING K3S CLUSTER"
 
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=3"
+
 progress() {
   draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" "$1"
 }
@@ -18,8 +20,8 @@ log() {
 wait_ssh() {
   local ip="$1"
   for i in {1..30}; do
-  run_bg echo "Trying with IP $ip"
-    if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=3 ubuntu@"$ip" "echo ok" >/dev/null 2>&1; then
+    run_bg echo "Trying SSH with IP $ip"
+    if ssh $SSH_OPTS ubuntu@"$ip" "echo ok" >/dev/null 2>&1; then
       return 0
     fi
     sleep 5
@@ -43,11 +45,9 @@ get_vm_ip() {
   return 1
 }
 
-
 MASTER_IP=$(get_vm_ip k3s-master) || return 1
 W1_IP=$(get_vm_ip k3s-worker1)   || return 1
 W2_IP=$(get_vm_ip k3s-worker2)   || return 1
-
 
 if [[ -z "$MASTER_IP" || -z "$W1_IP" || -z "$W2_IP" ]]; then
   log "ERROR: Unable to resolve VM IPs"
@@ -65,7 +65,7 @@ wait_ssh "$W2_IP"     || { log "ERROR: SSH not ready on worker2"; return 1; }
 # --------------------------------------------------
 progress 25
 log "Installing k3s server on master ($MASTER_IP)"
-run_bg sudo ssh -o StrictHostKeyChecking=no ubuntu@"$MASTER_IP" \
+run_bg ssh $SSH_OPTS ubuntu@"$MASTER_IP" \
   "curl -sfL https://get.k3s.io | sudo sh -s - server --disable traefik"
 
 progress 45
@@ -75,7 +75,7 @@ sleep 20
 # --------------------------------------------------
 # Get token
 # --------------------------------------------------
-TOKEN=$(sudo ssh -o StrictHostKeyChecking=no ubuntu@"$MASTER_IP" \
+TOKEN=$(ssh $SSH_OPTS ubuntu@"$MASTER_IP" \
   "sudo cat /var/lib/rancher/k3s/server/node-token")
 
 if [[ -z "$TOKEN" ]]; then
@@ -88,12 +88,12 @@ fi
 # --------------------------------------------------
 progress 60
 log "Joining worker1 ($W1_IP)"
-run_bg sudo ssh -o StrictHostKeyChecking=no ubuntu@"$W1_IP" \
+run_bg ssh $SSH_OPTS ubuntu@"$W1_IP" \
   "curl -sfL https://get.k3s.io | sudo K3S_URL=https://$MASTER_IP:6443 K3S_TOKEN=$TOKEN sh -"
 
 progress 75
 log "Joining worker2 ($W2_IP)"
-run_bg sudo ssh -o StrictHostKeyChecking=no ubuntu@"$W2_IP" \
+run_bg ssh $SSH_OPTS ubuntu@"$W2_IP" \
   "curl -sfL https://get.k3s.io | sudo K3S_URL=https://$MASTER_IP:6443 K3S_TOKEN=$TOKEN sh -"
 
 # --------------------------------------------------
@@ -102,7 +102,7 @@ run_bg sudo ssh -o StrictHostKeyChecking=no ubuntu@"$W2_IP" \
 progress 90
 log "Fetching kubeconfig"
 run_bg sudo mkdir -p /root/.kube
-run_bg sudo ssh -o StrictHostKeyChecking=no ubuntu@"$MASTER_IP" \
+run_bg ssh $SSH_OPTS ubuntu@"$MASTER_IP" \
   "sudo cat /etc/rancher/k3s/k3s.yaml" \
   | sed "s/127.0.0.1/$MASTER_IP/g" \
   | sudo tee /root/.kube/config >/dev/null
