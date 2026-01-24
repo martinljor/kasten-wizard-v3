@@ -4,7 +4,7 @@ set -e
 STEP_NUM=5
 STEP_TITLE="INSTALLING K3S CLUSTER"
 
-SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=3"
+SSH_OPTS="-o StrictHostKeyChecking=no"
 
 progress() {
   draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" "$1"
@@ -56,21 +56,23 @@ fi
 
 progress 10
 log "Waiting for SSH availability"
-wait_ssh "$MASTER_IP" || { log "ERROR: SSH not ready on master"; return 1; }
-wait_ssh "$W1_IP"     || { log "ERROR: SSH not ready on worker1"; return 1; }
-wait_ssh "$W2_IP"     || { log "ERROR: SSH not ready on worker2"; return 1; }
+#wait_ssh "$MASTER_IP" || { log "ERROR: SSH not ready on master"; return 1; }
+#wait_ssh "$W1_IP"     || { log "ERROR: SSH not ready on worker1"; return 1; }
+#wait_ssh "$W2_IP"     || { log "ERROR: SSH not ready on worker2"; return 1; }
+sleep 15
 
 # --------------------------------------------------
 # Install k3s server
 # --------------------------------------------------
 progress 25
 log "Installing k3s server on master ($MASTER_IP)"
-run_bg ssh $SSH_OPTS ubuntu@"$MASTER_IP" \
+ssh $SSH_OPTS ubuntu@"$MASTER_IP" \
   "curl -sfL https://get.k3s.io | sudo sh -s - server --disable traefik"
 
 progress 45
 log "Waiting for k3s server to initialize"
 sleep 20
+log (ssh $SSH_OPTS ubuntu@$MASTER_IP kubectl get nodes -A)
 
 # --------------------------------------------------
 # Get token
