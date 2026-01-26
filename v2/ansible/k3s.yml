@@ -1,0 +1,71 @@
+---
+# ------------------------------------------------------------
+# STEP 06 – K3s installation (Ansible)
+# ------------------------------------------------------------
+
+- name: Wait for SSH from host
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Wait until SSH port is reachable
+      wait_for:
+        host: "{{ ansible_host }}"
+        port: 22
+        timeout: 600
+        delay: 5
+      delegate_to: localhost
+
+- name: Install k3s server (master)
+  hosts: master
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Install k3s server
+      shell: curl -sfL https://get.k3s.io | sh -s - server --disable traefik
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Read node token
+      slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: k3s_token
+
+    - name: Set k3s token fact
+      set_fact:
+        k3s_node_token: "{{ k3s_token.content | b64decode | trim }}"
+
+- name: Join workers to cluster
+  hosts: workers
+  become: true
+  gather_facts: false
+  vars:
+    k3s_url: "https://{{ hostvars['k3s-master'].ansible_host }}:6443"
+    k3s_token: "{{ hostvars['k3s-master'].k3s_node_token }}"
+  tasks:
+    - name: Install k3s agent
+      shell: |
+        curl -sfL https://get.k3s.io | \
+        K3S_URL={{ k3s_url }} \
+        K3S_TOKEN={{ k3s_token }} \
+        sh -
+      args:
+        creates: /usr/local/bin/k3s-agent
+
+- name: Fetch kubeconfig to host
+  hosts: master
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read kubeconfig
+      slurp:
+        src: /etc/rancher/k3s/k3s.yaml
+      register: kubeconfig_raw
+
+    - name: Write kubeconfig on host
+      delegate_to: localhost
+      copy:
+        content: "{{ kubeconfig_raw.content
+          | b64decode
+          | replace('127.0.0.1', hostvars['k3s-master'].ansible_host) }}"
+        dest: /root/.kube/config
+        mode: '0600'
