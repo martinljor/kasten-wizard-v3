@@ -1,0 +1,19 @@
+---
+- name: K3s Cluster Health Check
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Wait until nodes exist
+      shell: kubectl get nodes --no-headers
+      register: nodes_out
+      retries: 30
+      delay: 10
+      until: nodes_out.stdout != ""
+
+    - name: Wait until all nodes are Ready
+      shell: |
+        kubectl get nodes --no-headers | awk '{print $2}' | grep -v Ready || true
+      register: not_ready
+      retries: 30
+      delay: 10
+      until: not_ready.stdout == ""
