@@ -13,6 +13,17 @@ log() {
 }
 
 # --------------------------------------------------
+# VM sizing (IMPORTANT)
+# --------------------------------------------------
+DISK_SIZE="30G"
+
+MASTER_MEM=3072     # 3 GB
+WORKER_MEM=2560     # 2.5 GB
+
+MASTER_VCPUS=2
+WORKER_VCPUS=2
+
+# --------------------------------------------------
 # Cleanup existing VMs
 # --------------------------------------------------
 cleanup_vm() {
@@ -25,15 +36,14 @@ cleanup_vm() {
 }
 
 progress 5
-cleanup_vm k3s-master
-cleanup_vm k3s-worker1
-cleanup_vm k3s-worker2
+run_bg cleanup_vm k3s-master
+run_bg cleanup_vm k3s-worker1
+run_bg cleanup_vm k3s-worker2
 
 # --------------------------------------------------
 # Packages
 # --------------------------------------------------
 progress 10
-log "Installing libvirt packages"
 run_bg sudo apt-get update
 run_bg sudo apt-get install -y \
   qemu-kvm \
@@ -70,34 +80,26 @@ if [[ ! -f "$BASE_IMG" ]]; then
 fi
 
 # --------------------------------------------------
-# SSH key
+# SSH key handling (real sudo user)
 # --------------------------------------------------
-SUDO_USER_HOME=$(eval echo "~$SUDO_USER")
+REAL_USER="${SUDO_USER:-$(whoami)}"
+REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
+SSH_DIR="$REAL_HOME/.ssh"
 
-# --------------------------------------------------
-# SSH key handling
-# --------------------------------------------------
-if [[ ! -f "$SUDO_USER_HOME/.ssh/id_rsa.pub" ]]; then
-  echo "[INFO] SSH key not found, generating one" >> "$LOG_FILE"
-
-  run_bg sudo -u "$SUDO_USER" mkdir -p "$SUDO_USER_HOME/.ssh"
-  run_bg sudo -u "$SUDO_USER" ssh-keygen -t rsa -b 4096 \
-    -f "$SUDO_USER_HOME/.ssh/id_rsa" \
-    -N ""
+if [[ ! -f "$SSH_DIR/id_rsa.pub" ]]; then
+  log "SSH key not found, generating RSA key for $REAL_USER"
+  sudo -u "$REAL_USER" mkdir -p "$SSH_DIR"
+  sudo -u "$REAL_USER" ssh-keygen -t rsa -b 4096 \
+    -f "$SSH_DIR/id_rsa" -N ""
 fi
 
-SSH_KEY=$(cat "$SUDO_USER_HOME/.ssh/id_rsa.pub")
+SSH_KEY="$(cat "$SSH_DIR/id_rsa.pub")"
 
-run_bg echo $SSH_KEY
 # --------------------------------------------------
 # Cloud-init generator
 # --------------------------------------------------
 create_cloudinit() {
   local name="$1"
-run_bg echo "Start with cloudinit"
-run_bg echo $CI_DIR
-run_bg echo $name
-
 
   cat > "$CI_DIR/$name-user-data.yaml" <<EOF
 #cloud-config
@@ -116,7 +118,7 @@ EOF
 
   echo "instance-id: $name" > "$CI_DIR/$name-meta-data.yaml"
 
-  run_bg sudo cloud-localds \
+  sudo cloud-localds \
     "$CI_DIR/$name-seed.iso" \
     "$CI_DIR/$name-user-data.yaml" \
     "$CI_DIR/$name-meta-data.yaml"
@@ -138,12 +140,12 @@ create_vm() {
 
   log "Creating VM $name"
 
-run_bg sudo rm -f "$IMG_DIR/$name.qcow2"
-run_bg sudo qemu-img create -f qcow2 -F qcow2 -b "$BASE_IMG" \
-  "$IMG_DIR/$name.qcow2"
+  sudo rm -f "$IMG_DIR/$name.qcow2"
+  sudo qemu-img create -f qcow2 -F qcow2 -b "$BASE_IMG" \
+    "$IMG_DIR/$name.qcow2"
+  sudo qemu-img resize "$IMG_DIR/$name.qcow2" "$DISK_SIZE"
 
-
-  run_bg sudo virt-install \
+  sudo virt-install \
     --name "$name" \
     --memory "$mem" \
     --vcpus "$vcpus" \
@@ -157,24 +159,22 @@ run_bg sudo qemu-img create -f qcow2 -F qcow2 -b "$BASE_IMG" \
 }
 
 progress 50
-create_vm k3s-master 2048 2
-create_vm k3s-worker1 1536 1
-create_vm k3s-worker2 1536 1
+run_bg create_vm k3s-master  "$MASTER_MEM" "$MASTER_VCPUS"
+run_bg create_vm k3s-worker1 "$WORKER_MEM" "$WORKER_VCPUS"
+run_bg create_vm k3s-worker2 "$WORKER_MEM" "$WORKER_VCPUS"
 
 # --------------------------------------------------
 # Ensure VMs are running
 # --------------------------------------------------
 progress 70
-log "Starting VMs"
 for vm in k3s-master k3s-worker1 k3s-worker2; do
-  run_bg sudo virsh start "$vm" || true
+  sudo virsh start "$vm" || true
 done
 
 # --------------------------------------------------
-# Boot wait (realistic)
+# Boot wait
 # --------------------------------------------------
 progress 90
-log "Waiting for VMs to boot (this may take a few minutes)"
 sleep 60
 
 progress 100

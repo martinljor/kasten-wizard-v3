@@ -32,7 +32,15 @@ run_bg apt-get install -y \
 draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" 30
 
 # -------------------------------------------------
-# Helm installation (Buildkite repo – confirmed working)
+# Ansible installation 
+# -------------------------------------------------
+
+log "Installing Ansible"
+sudo apt-get update
+sudo apt-get install -y ansible
+
+# -------------------------------------------------
+# Helm installation 
 # -------------------------------------------------
 if ! command -v helm >/dev/null 2>&1; then
   run_bg mkdir -p /usr/share/keyrings

@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-STEP_NUM=5
-STEP_TITLE="INSTALLING K3S CLUSTER"
-
-SSH_OPTS="-o StrictHostKeyChecking=no"
+STEP_NUM=6
+STEP_TITLE="INSTALLING K3S CLUSTER (ANSIBLE)"
 
 progress() {
   draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" "$1"
@@ -15,101 +13,64 @@ log() {
 }
 
 # --------------------------------------------------
-# Helpers
+# Detect real user + SSH key
 # --------------------------------------------------
-wait_ssh() {
-  local ip="$1"
-  for i in {1..30}; do
-    run_bg echo "Trying SSH with IP $ip"
-    if ssh $SSH_OPTS ubuntu@"$ip" true >/dev/null 2>&1; then
-      return 0
-    fi
-    sleep 5
-  done
-  return 1
-}
+REAL_USER="${SUDO_USER:-$(whoami)}"
+REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
+SSH_DIR="$REAL_HOME/.ssh"
+
+if [[ -f "$SSH_DIR/id_ed25519" ]]; then
+  SSH_KEY="$SSH_DIR/id_ed25519"
+elif [[ -f "$SSH_DIR/id_rsa" ]]; then
+  SSH_KEY="$SSH_DIR/id_rsa"
+else
+  log "ERROR: No SSH key found"
+  exit 1
+fi
 
 # --------------------------------------------------
-# Resolve IPs
+# Resolve VM IPs
 # --------------------------------------------------
 get_vm_ip() {
   local vm="$1"
   for i in {1..30}; do
     ip=$(sudo virsh domifaddr "$vm" | awk '/ipv4/ {print $4}' | cut -d/ -f1)
-    if [[ -n "$ip" ]]; then
-      echo "$ip"
-      return 0
-    fi
+    [[ -n "$ip" ]] && { echo "$ip"; return 0; }
     sleep 5
   done
   return 1
 }
 
-MASTER_IP=$(get_vm_ip k3s-master) || return 1
-W1_IP=$(get_vm_ip k3s-worker1)   || return 1
-W2_IP=$(get_vm_ip k3s-worker2)   || return 1
-
-if [[ -z "$MASTER_IP" || -z "$W1_IP" || -z "$W2_IP" ]]; then
-  log "ERROR: Unable to resolve VM IPs"
-  return 1
-fi
-
-progress 10
-log "Waiting for SSH availability"
-#wait_ssh "$MASTER_IP" || { log "ERROR: SSH not ready on master"; return 1; }
-#wait_ssh "$W1_IP"     || { log "ERROR: SSH not ready on worker1"; return 1; }
-#wait_ssh "$W2_IP"     || { log "ERROR: SSH not ready on worker2"; return 1; }
-sleep 15
+MASTER_IP=$(get_vm_ip k3s-master) || exit 1
+W1_IP=$(get_vm_ip k3s-worker1)   || exit 1
+W2_IP=$(get_vm_ip k3s-worker2)   || exit 1
 
 # --------------------------------------------------
-# Install k3s server
+# Generate Ansible inventory (dynamic)
 # --------------------------------------------------
-progress 25
-log "Installing k3s server on master ($MASTER_IP)"
-ssh $SSH_OPTS ubuntu@"$MASTER_IP" \
-  "curl -sfL https://get.k3s.io | sudo sh -s - server --disable traefik"
 
-progress 45
-log "Waiting for k3s server to initialize"
-sleep 20
-log (ssh $SSH_OPTS ubuntu@$MASTER_IP kubectl get nodes -A)
+ANSIBLE_DIR="$(pwd)/ansible"
+mkdir -p "$ANSIBLE_DIR"
 
-# --------------------------------------------------
-# Get token
-# --------------------------------------------------
-TOKEN=$(ssh $SSH_OPTS ubuntu@"$MASTER_IP" \
-  "sudo cat /var/lib/rancher/k3s/server/node-token")
+cat > "$ANSIBLE_DIR/inventory.ini" <<EOF
+[master]
+k3s-master ansible_host=$MASTER_IP
 
-if [[ -z "$TOKEN" ]]; then
-  log "ERROR: k3s token not found"
-  return 1
-fi
+[workers]
+k3s-worker1 ansible_host=$W1_IP
+k3s-worker2 ansible_host=$W2_IP
 
-# --------------------------------------------------
-# Join workers
-# --------------------------------------------------
-progress 60
-log "Joining worker1 ($W1_IP)"
-run_bg ssh $SSH_OPTS ubuntu@"$W1_IP" \
-  "curl -sfL https://get.k3s.io | sudo K3S_URL=https://$MASTER_IP:6443 K3S_TOKEN=$TOKEN sh -"
+[all:vars]
+ansible_user=ubuntu
+ansible_ssh_private_key_file=$SSH_KEY
+ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_common_args='-o StrictHostKeyChecking=accept-new'
+EOF
 
-progress 75
-log "Joining worker2 ($W2_IP)"
-run_bg ssh $SSH_OPTS ubuntu@"$W2_IP" \
-  "curl -sfL https://get.k3s.io | sudo K3S_URL=https://$MASTER_IP:6443 K3S_TOKEN=$TOKEN sh -"
+progress 20
+log "Running Ansible playbook"
 
-# --------------------------------------------------
-# Kubeconfig
-# --------------------------------------------------
-progress 90
-log "Fetching kubeconfig"
-run_bg sudo mkdir -p /root/.kube
-run_bg ssh $SSH_OPTS ubuntu@"$MASTER_IP" \
-  "sudo cat /etc/rancher/k3s/k3s.yaml" \
-  | sed "s/127.0.0.1/$MASTER_IP/g" \
-  | sudo tee /root/.kube/config >/dev/null
-run_bg sudo chmod 600 /root/.kube/config
+run_bg ansible-playbook -i "$ANSIBLE_DIR/inventory.ini" "$ANSIBLE_DIR/k3s.yml"
 
 progress 100
 log "STEP 06 completed successfully"
-return 0
