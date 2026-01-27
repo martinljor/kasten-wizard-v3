@@ -1,7 +1,5 @@
 ---
-# ------------------------------------------------------------
-# STEP 06 – K3s installation (Ansible)
-# ------------------------------------------------------------
+# STEP 06 – Install K3s cluster (FINAL)
 
 - name: Wait for SSH from host
   hosts: all
@@ -12,7 +10,6 @@
         host: "{{ ansible_host }}"
         port: 22
         timeout: 600
-        delay: 5
       delegate_to: localhost
 
 - name: Install k3s server (master)
@@ -30,6 +27,10 @@
       async: 900
       poll: 0
 
+    - name: Wait for k3s server bootstrap (node-token)
+      wait_for:
+        path: /var/lib/rancher/k3s/server/node-token
+        timeout: 600
 
     - name: Read node token
       slurp:
@@ -48,30 +49,14 @@
     k3s_url: "https://{{ hostvars['k3s-master'].ansible_host }}:6443"
     k3s_token: "{{ hostvars['k3s-master'].k3s_node_token }}"
   tasks:
-    - name: Install k3s agent
+    - name: Install k3s agent (non-blocking)
       shell: |
         curl -sfL https://get.k3s.io | \
         K3S_URL={{ k3s_url }} \
         K3S_TOKEN={{ k3s_token }} \
+        K3S_NODE_NAME={{ inventory_hostname }} \
         sh -
       args:
         creates: /usr/local/bin/k3s-agent
-
-- name: Fetch kubeconfig to host
-  hosts: master
-  become: true
-  gather_facts: false
-  tasks:
-    - name: Read kubeconfig
-      slurp:
-        src: /etc/rancher/k3s/k3s.yaml
-      register: kubeconfig_raw
-
-    - name: Write kubeconfig on host
-      delegate_to: localhost
-      copy:
-        content: "{{ kubeconfig_raw.content
-          | b64decode
-          | replace('127.0.0.1', hostvars['k3s-master'].ansible_host) }}"
-        dest: /root/.kube/config
-        mode: '0600'
+      async: 900
+      poll: 0
