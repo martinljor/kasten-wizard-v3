@@ -45,9 +45,14 @@ MASTER_IP=$(get_vm_ip k3s-master) || exit 1
 W1_IP=$(get_vm_ip k3s-worker1)   || exit 1
 W2_IP=$(get_vm_ip k3s-worker2)   || exit 1
 
+
 # --------------------------------------------------
 # Generate Ansible inventory (dynamic)
 # --------------------------------------------------
+REAL_USER="${SUDO_USER:-$(whoami)}"
+REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
+SSH_KEY_PATH="$REAL_HOME/.ssh/id_rsa"
+
 
 ANSIBLE_DIR="$(pwd)/ansible"
 mkdir -p "$ANSIBLE_DIR"
@@ -62,9 +67,9 @@ k3s-worker2 ansible_host=$W2_IP
 
 [all:vars]
 ansible_user=ubuntu
-ansible_ssh_private_key_file=$SSH_KEY
+ansible_ssh_private_key_file=$SSH_KEY_PATH
 ansible_python_interpreter=/usr/bin/python3
-ansible_ssh_common_args='-o StrictHostKeyChecking=accept-new'
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 EOF
 
 progress 20

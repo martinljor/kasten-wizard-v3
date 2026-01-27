@@ -44,7 +44,7 @@ run_bg cleanup_vm k3s-worker2
 # Packages
 # --------------------------------------------------
 progress 10
-run_bg sudo apt-get update
+#run_bg sudo apt-get update
 run_bg sudo apt-get install -y \
   qemu-kvm \
   libvirt-daemon-system \
@@ -87,7 +87,7 @@ REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
 SSH_DIR="$REAL_HOME/.ssh"
 
 if [[ ! -f "$SSH_DIR/id_rsa.pub" ]]; then
-  log "SSH key not found, generating RSA key for $REAL_USER"
+  run_bg "SSH key not found, generating RSA key for $REAL_USER"
   sudo -u "$REAL_USER" mkdir -p "$SSH_DIR"
   sudo -u "$REAL_USER" ssh-keygen -t rsa -b 4096 \
     -f "$SSH_DIR/id_rsa" -N ""
@@ -98,11 +98,15 @@ SSH_KEY="$(cat "$SSH_DIR/id_rsa.pub")"
 # --------------------------------------------------
 # Cloud-init generator
 # --------------------------------------------------
+
 create_cloudinit() {
   local name="$1"
 
   cat > "$CI_DIR/$name-user-data.yaml" <<EOF
 #cloud-config
+hostname: $name
+preserve_hostname: false
+manage_etc_hosts: true
 users:
   - name: ubuntu
     sudo: ALL=(ALL) NOPASSWD:ALL
@@ -112,17 +116,24 @@ users:
       - $SSH_KEY
 packages:
   - qemu-guest-agent
+  - openssh-server
 runcmd:
   - systemctl enable --now qemu-guest-agent
+  - systemctl enable --now ssh
+  - hostnamectl set-hostname $name
+  - echo $name > /etc/hostname
+  - systemctl restart systemd-hostnamed || true
 EOF
 
   echo "instance-id: $name" > "$CI_DIR/$name-meta-data.yaml"
+  echo "local-hostname: $name" >> "$CI_DIR/$name-meta-data.yaml"
 
   sudo cloud-localds \
     "$CI_DIR/$name-seed.iso" \
     "$CI_DIR/$name-user-data.yaml" \
     "$CI_DIR/$name-meta-data.yaml"
 }
+
 
 progress 35
 log "Preparing cloud-init"
