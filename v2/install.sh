@@ -30,7 +30,7 @@ export LOG_FILE
 # --------------------------------------------------
 # Wizard state
 # --------------------------------------------------
-TOTAL_STEPS=6
+TOTAL_STEPS=7
 CURRENT_STEP=0
 CURRENT_TITLE=""
 
@@ -150,12 +150,25 @@ step_timer_end 0
 sleep 1
 
 # ==================================================
-# STEP 6 – Final
+# STEP 6 – K3s Health Check
 # ==================================================
 CURRENT_STEP=6
+CURRENT_TITLE="K3S CLUSTER HEALTH CHECK"
+
+step_timer_start
+draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+source ./steps/07-health.sh
+draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+step_timer_end 0
+sleep 1
+
+# ==================================================
+# STEP 7 – Final
+# ==================================================
+CURRENT_STEP=7
 CURRENT_TITLE="INSTALLATION COMPLETED"
 
-draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 2
 
 # --------------------------------------------------
@@ -163,7 +176,6 @@ sleep 2
 # --------------------------------------------------
 END_TIME=$(date +%s)
 ELAPSED=$((END_TIME - START_TIME))
-
 echo "[INFO] Wizard execution time: ${ELAPSED}s" >> "$LOG_FILE"
 
 exit 0
