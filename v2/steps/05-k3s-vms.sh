@@ -30,8 +30,8 @@ cleanup_vm() {
   local vm="$1"
   if sudo virsh dominfo "$vm" >/dev/null 2>&1; then
     log "Removing existing VM $vm"
-    sudo virsh destroy "$vm" >/dev/null 2>&1 || true
-    sudo virsh undefine "$vm" --remove-all-storage --nvram >/dev/null 2>&1 || true
+    run_bg sudo virsh destroy "$vm" >/dev/null 2>&1 || true
+    run_bg sudo virsh undefine "$vm" --remove-all-storage --nvram >/dev/null 2>&1 || true
   fi
 }
 
@@ -88,8 +88,8 @@ SSH_DIR="$REAL_HOME/.ssh"
 
 if [[ ! -f "$SSH_DIR/id_rsa.pub" ]]; then
   echo "SSH key not found, generating RSA key for $REAL_USER"
-  sudo -u "$REAL_USER" mkdir -p "$SSH_DIR"
-  sudo -u "$REAL_USER" ssh-keygen -t rsa -b 4096 \
+  run_bg sudo -u "$REAL_USER" mkdir -p "$SSH_DIR"
+  run_bg sudo -u "$REAL_USER" ssh-keygen -t rsa -b 4096 \
     -f "$SSH_DIR/id_rsa" -N ""
 fi
 
@@ -137,9 +137,9 @@ EOF
 
 progress 35
 log "Preparing cloud-init"
-create_cloudinit k3s-master
-create_cloudinit k3s-worker1
-create_cloudinit k3s-worker2
+run_bg create_cloudinit k3s-master
+run_bg create_cloudinit k3s-worker1
+run_bg create_cloudinit k3s-worker2
 
 # --------------------------------------------------
 # VM creator

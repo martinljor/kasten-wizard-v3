@@ -28,16 +28,9 @@ run_bg apt-get install -y \
   libvirt-clients \
   virtinst \
   cloud-image-utils \
-  bridge-utils
+  bridge-utils \
+  ansible
 draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" 30
-
-# -------------------------------------------------
-# Ansible installation 
-# -------------------------------------------------
-
-log "Installing Ansible"
-sudo apt-get update
-sudo apt-get install -y ansible
 
 # -------------------------------------------------
 # Helm installation 
