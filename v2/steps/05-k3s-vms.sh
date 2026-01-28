@@ -87,7 +87,7 @@ REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
 SSH_DIR="$REAL_HOME/.ssh"
 
 if [[ ! -f "$SSH_DIR/id_rsa.pub" ]]; then
-  run_bg "SSH key not found, generating RSA key for $REAL_USER"
+  echo "SSH key not found, generating RSA key for $REAL_USER"
   sudo -u "$REAL_USER" mkdir -p "$SSH_DIR"
   sudo -u "$REAL_USER" ssh-keygen -t rsa -b 4096 \
     -f "$SSH_DIR/id_rsa" -N ""
