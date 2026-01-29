@@ -165,9 +165,8 @@ draw_step() {
   hide_cursor
   clear
   draw_green_panel
-  clear_console_area
-
-  local row=3
+  
+  local row=4
   print_green_line "KASTEN LAB INSTALLATION" "$row"; ((row+=2))
   print_green_line "STEP $step / $total" "$row"; ((row++))
   print_green_line "$title" "$row"; ((row+=2))
