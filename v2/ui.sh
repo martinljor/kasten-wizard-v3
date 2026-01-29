@@ -5,7 +5,7 @@ set -u
 # CONFIG
 # =========================
 PANEL_WIDTH=80
-PANEL_HEIGHT=16        
+PANEL_HEIGHT=10        
 CONSOLE_MARGIN=2    
 
 # =========================
@@ -51,12 +51,11 @@ console_top() {
 # PANEL DRAW
 # =========================
 draw_green_panel() {
-  local left top
+  local left
   left=$(panel_left)
-  top=$(panel_top)
 
   for ((r=0; r<PANEL_HEIGHT; r++)); do
-    tput cup "$((top + r))" "$left"
+    tput cup "$r" "$left"
     printf "${BG_GREEN}%*s${RESET}" "$PANEL_WIDTH" ""
   done
 }
@@ -115,10 +114,9 @@ confirm_start() {
   hide_cursor
   clear
   draw_green_panel
-  clear_console_area
   disable_terminal_input
 
-  local row=5
+  local row=1
   print_green_line "KASTEN LAB INSTALLATION" "$row"; ((row+=2))
   print_green_line "This process will install and configure" "$row"; ((row++))
   print_green_line "a local Kasten lab environment." "$row"; ((row+=2))
