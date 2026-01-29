@@ -7,6 +7,10 @@ set -Eeuo pipefail
 clear
 source ./ui.sh
 
+START_TS=$(date +%s)
+LAST_COMPLETED_STEP=0
+
+
 # --------------------------------------------------
 # Log setup
 # --------------------------------------------------
@@ -177,5 +181,8 @@ sleep 2
 END_TIME=$(date +%s)
 ELAPSED=$((END_TIME - START_TIME))
 echo "[INFO] Wizard execution time: ${ELAPSED}s" >> "$LOG_FILE"
+
+source ./steps/99-summary.sh
+
 
 exit 0
