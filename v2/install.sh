@@ -7,9 +7,14 @@ set -Eeuo pipefail
 clear
 source ./ui.sh
 
+
 START_TS=$(date +%s)
 LAST_COMPLETED_STEP=0
 trap user_abort INT TERM
+
+EXPECTED_NODES=3
+export EXPECTED_NODES
+
 
 user_abort() {
   CURRENT_TITLE="ABORTED BY USER"
@@ -78,8 +83,10 @@ step_timer_end() {
 # --------------------------------------------------
 cleanup() {
   enable_terminal_input
+  source ./steps/99-final-summary.sh
+
   echo
-  echo "Script finished. Logs available at:"
+  echo "Logs available at:"
   echo "  $LOG_FILE"
   echo "  $STEP_LOG_FILE"
 }
