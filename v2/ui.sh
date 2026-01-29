@@ -5,8 +5,8 @@ set -u
 # CONFIG
 # =========================
 PANEL_WIDTH=80
-PANEL_HEIGHT=14        # ← altura del panel verde
-CONSOLE_MARGIN=2       # espacio entre panel y consola
+PANEL_HEIGHT=16        
+CONSOLE_MARGIN=2    
 
 # =========================
 # COLORS
@@ -33,8 +33,11 @@ panel_left() {
 }
 
 panel_top() {
-  echo 1
+  local term_lines
+  term_lines=$(lines)
+  echo $(( (term_lines - PANEL_HEIGHT) / 2 ))
 }
+
 
 panel_bottom() {
   echo $((PANEL_HEIGHT))
@@ -115,7 +118,7 @@ confirm_start() {
   clear_console_area
   disable_terminal_input
 
-  local row=3
+  local row=5
   print_green_line "KASTEN LAB INSTALLATION" "$row"; ((row+=2))
   print_green_line "This process will install and configure" "$row"; ((row++))
   print_green_line "a local Kasten lab environment." "$row"; ((row+=2))
