@@ -5,6 +5,8 @@ set -u
 # CONFIG
 # =========================
 PANEL_WIDTH=80
+PANEL_HEIGHT=14        # ← altura del panel verde
+CONSOLE_MARGIN=2       # espacio entre panel y consola
 
 # =========================
 # COLORS
@@ -30,30 +32,49 @@ panel_left() {
   echo $(( (term_cols - PANEL_WIDTH) / 2 ))
 }
 
+panel_top() {
+  echo 1
+}
+
+panel_bottom() {
+  echo $((PANEL_HEIGHT))
+}
+
+console_top() {
+  echo $((PANEL_HEIGHT + CONSOLE_MARGIN))
+}
+
 # =========================
 # PANEL DRAW
 # =========================
 draw_green_panel() {
-  local rows left
-  rows=$(lines)
+  local left top
   left=$(panel_left)
+  top=$(panel_top)
 
-  for ((r=0; r<rows; r++)); do
-    tput cup "$r" "$left"
+  for ((r=0; r<PANEL_HEIGHT; r++)); do
+    tput cup "$((top + r))" "$left"
     printf "${BG_GREEN}%*s${RESET}" "$PANEL_WIDTH" ""
   done
 }
 
-disable_terminal_input() {
-  stty -echo
+clear_console_area() {
+  local start end cols
+  start=$(console_top)
+  end=$(lines)
+  cols=$(cols)
+
+  for ((r=start; r<end; r++)); do
+    tput cup "$r" 0
+    printf "%*s" "$cols" ""
+  done
 }
 
-enable_terminal_input() {
-  stty echo
-}
+disable_terminal_input() { stty -echo; }
+enable_terminal_input() { stty echo; }
 
 # =========================
-# PRINT HELPERS
+# PRINT HELPERS (PANEL)
 # =========================
 print_green_line() {
   local text="$1"
@@ -63,15 +84,6 @@ print_green_line() {
 
   tput cup "$row" "$((left + 2))"
   printf "${BG_GREEN}${FG_BLACK} %-*s ${RESET}" "$((PANEL_WIDTH - 4))" "$text"
-}
-
-print_green_empty() {
-  local row="$1"
-  local left
-  left=$(panel_left)
-
-  tput cup "$row" "$left"
-  printf "${BG_GREEN}%*s${RESET}" "$PANEL_WIDTH" ""
 }
 
 print_red_line() {
@@ -85,14 +97,25 @@ print_red_line() {
 }
 
 # =========================
+# PRINT HELPERS (CONSOLE)
+# =========================
+print_console() {
+  local text="$1"
+  tput cup "$(console_top)" 0
+  echo "$text"
+}
+
+# =========================
 # CONFIRM START
 # =========================
 confirm_start() {
   hide_cursor
+  clear
   draw_green_panel
+  clear_console_area
   disable_terminal_input
-  local row=4
 
+  local row=3
   print_green_line "KASTEN LAB INSTALLATION" "$row"; ((row+=2))
   print_green_line "This process will install and configure" "$row"; ((row++))
   print_green_line "a local Kasten lab environment." "$row"; ((row+=2))
@@ -106,22 +129,21 @@ confirm_start() {
   printf "${BG_GREEN}${FG_BLACK}> ${RESET}"
 
   read -r answer
+  enable_terminal_input
+
   case "$answer" in
-    yes|YES)
-      return 0
-      ;;
+    yes|YES) return 0 ;;
     no|NO)
+      clear
       draw_green_panel
-      row=6
-      print_green_line "Installation aborted by user." "$row"; ((row++))
-      print_green_line "No changes were made to the system." "$row"
+      print_green_line "Installation aborted by user." 6
       show_cursor
       exit 0
       ;;
     *)
+      clear
       draw_green_panel
-      row=6
-      print_red_line "Invalid answer. Please run the installer again." "$row"
+      print_red_line "Invalid answer. Please run the installer again." 6
       show_cursor
       exit 1
       ;;
@@ -138,7 +160,9 @@ draw_step() {
   local percent="$4"
 
   hide_cursor
+  clear
   draw_green_panel
+  clear_console_area
 
   local row=3
   print_green_line "KASTEN LAB INSTALLATION" "$row"; ((row+=2))
@@ -153,7 +177,6 @@ draw_step() {
 
   print_green_line "[${bar}] ${percent}%" "$row"; ((row+=2))
   print_green_line "WARNING: DO NOT INTERRUPT THIS PROCESS - WAIT!" "$row"
-  #print_green_line "Whats going on? open new term and run: tail -f $log"
 }
 
 # =========================
@@ -161,22 +184,25 @@ draw_step() {
 # =========================
 draw_error() {
   local step="$1"
-  local title="$2"
-  local log="$3"
+  local total="$2"
+  local title="$3"
+  local log="$4"
 
   hide_cursor
+  clear
   draw_green_panel
+  clear_console_area
 
-  local row=4
+  local row=3
   print_red_line "KASTEN LAB INSTALLATION" "$row"; ((row++))
-  print_red_line "STEP $step - $title" "$row"; ((row+=2))
+  print_red_line "STEP $step / $total" "$row"; ((row++))
+  print_red_line "$title" "$row"; ((row+=2))
   print_red_line "EXECUTION FAILED" "$row"; ((row+=2))
-  print_red_line "An unexpected error occurred." "$row"; ((row++))
-  print_red_line "Please review the log file:" "$row"; ((row++))
-  print_red_line "$log" "$row"; ((row+=2))
-  print_red_line "Developed by MJ (martin.jorge@veeam.com)" "$row"
+  print_red_line "See log file:" "$row"; ((row++))
+  print_red_line "$log" "$row"
+
+  print_console "ERROR: execution failed. Check logs above."
 
   show_cursor
   exit 1
 }
-
