@@ -9,6 +9,13 @@ source ./ui.sh
 
 START_TS=$(date +%s)
 LAST_COMPLETED_STEP=0
+trap user_abort INT TERM
+
+user_abort() {
+  CURRENT_TITLE="ABORTED BY USER"
+  draw_abort "$CURRENT_STEP" "$TOTAL_STEPS" "$CURRENT_TITLE"
+  exit 130
+}
 
 
 # --------------------------------------------------

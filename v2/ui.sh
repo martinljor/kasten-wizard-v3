@@ -220,3 +220,26 @@ draw_error() {
   exit 1
 }
 
+draw_abort() {
+  local step="$1"
+  local total="$2"
+  local title="$3"
+
+  hide_cursor
+  clear
+  draw_red_panel
+
+  local row=$((PANEL_TOP + 3))
+  print_red_line "KASTEN LAB INSTALLATION" "$row"; ((row+=2))
+  print_red_line "STEP $step / $total" "$row"; ((row++))
+  print_red_line "$title" "$row"; ((row+=2))
+  print_red_line "Execution was interrupted by user." "$row"; ((row+=2))
+  print_red_line "No further actions were executed." "$row"
+
+  tput cup "$((PANEL_TOP + PANEL_HEIGHT + 1))" 2
+  echo -e "\033[33mABORTED by user (Ctrl+C)\033[0m"
+
+  show_cursor
+}
+
+
