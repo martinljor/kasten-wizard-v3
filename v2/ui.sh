@@ -61,6 +61,15 @@ draw_green_panel() {
   done
 }
 
+draw_red_panel() {
+  local left
+  left=$(panel_left)
+
+  for ((r=0; r<PANEL_HEIGHT; r++)); do
+    tput cup "$((PANEL_TOP + r))" "$left"
+    printf "${BG_RED}%*s${RESET}" "$PANEL_WIDTH" ""
+  done
+}
 
 clear_console_area() {
   local start end cols
@@ -192,19 +201,22 @@ draw_error() {
 
   hide_cursor
   clear
-  draw_green_panel
-  clear_console_area
+  draw_red_panel
 
-  local row=3
-  print_red_line "KASTEN LAB INSTALLATION" "$row"; ((row++))
+  local row=$((PANEL_TOP + 2))
+
+  print_red_line "KASTEN LAB INSTALLATION" "$row"; ((row+=2))
   print_red_line "STEP $step / $total" "$row"; ((row++))
   print_red_line "$title" "$row"; ((row+=2))
   print_red_line "EXECUTION FAILED" "$row"; ((row+=2))
   print_red_line "See log file:" "$row"; ((row++))
   print_red_line "$log" "$row"
 
-  print_console "ERROR: execution failed. Check logs above."
+  # Zona negra inferior (mensajes)
+  tput cup "$((PANEL_TOP + PANEL_HEIGHT + 1))" 2
+  echo -e "\033[31mERROR: execution failed. Check logs above.\033[0m"
 
   show_cursor
   exit 1
 }
+
