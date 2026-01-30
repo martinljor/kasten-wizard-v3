@@ -76,6 +76,24 @@ progress 20
 log "Running Ansible playbook"
 
 run_bg ansible-playbook -i "$ANSIBLE_DIR/inventory.ini" "$ANSIBLE_DIR/k3s.yml"
+progress 70
+
+log "Fetching kubeconfig from k3s-master"
+
+MASTER_IP=$(virsh domifaddr k3s-master \
+  | awk '/ipv4/ {print $4}' | cut -d/ -f1)
+
+mkdir -p "$HOME/.kube"
+
+scp -o StrictHostKeyChecking=no \
+  ubuntu@"$MASTER_IP":/etc/rancher/k3s/k3s.yaml \
+  "$HOME/.kube/config"
+
+sed -i "s/127.0.0.1/$MASTER_IP/" "$HOME/.kube/config"
+
+chmod 600 "$HOME/.kube/config"
+
+log "kubeconfig installed at $HOME/.kube/config"
 
 progress 100
 log "STEP 06 completed successfully"

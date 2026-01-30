@@ -18,6 +18,13 @@ log "Waiting for $EXPECTED_NODES nodes to register"
 
 NODE_COUNT=0
 
+if [[ ! -f "$HOME/.kube/config" ]]; then
+  log "ERROR: kubeconfig not found on host"
+  exit 1
+fi
+
+progress 20
+
 for ((i=1; i<=MAX_RETRIES; i++)); do
   NODE_COUNT=$(kubectl get nodes --no-headers 2>/dev/null | wc -l || true)
 
