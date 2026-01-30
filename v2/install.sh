@@ -46,7 +46,7 @@ export LOG_FILE
 # --------------------------------------------------
 # Wizard state
 # --------------------------------------------------
-TOTAL_STEPS=7
+TOTAL_STEPS=8
 CURRENT_STEP=0
 CURRENT_TITLE=""
 
@@ -188,6 +188,20 @@ CURRENT_TITLE="INSTALLATION COMPLETED"
 
 draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 sleep 2
+
+# ==================================================
+# STEP 8 – Longhorn Storage
+# ==================================================
+CURRENT_STEP=8
+CURRENT_TITLE="INSTALLING LONGHORN STORAGE"
+
+step_timer_start
+draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+source ./steps/08-longhorn.sh
+draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+step_timer_end 0
+sleep 1
+
 
 # --------------------------------------------------
 # Total execution time
