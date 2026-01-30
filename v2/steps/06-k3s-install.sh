@@ -83,13 +83,15 @@ log "Fetching kubeconfig from k3s-master"
 MASTER_IP=$(virsh domifaddr k3s-master \
   | awk '/ipv4/ {print $4}' | cut -d/ -f1)
 
-mkdir -p "$HOME/.kube"
+KUBE_DIR="$REAL_HOME/.kube"
+mkdir -p "$KUBE_DIR"
 
 scp -o StrictHostKeyChecking=no \
   ubuntu@"$MASTER_IP":/etc/rancher/k3s/k3s.yaml \
-  "$HOME/.kube/config"
+  "$KUBE_DIR/config"
 
-sed -i "s/127.0.0.1/$MASTER_IP/" "$HOME/.kube/config"
+sed -i "s/127.0.0.1/$MASTER_IP/" "$KUBE_DIR/config"
+chmod 600 "$KUBE_DIR/config"
 
 chmod 600 "$HOME/.kube/config"
 

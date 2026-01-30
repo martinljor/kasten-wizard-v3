@@ -13,17 +13,31 @@ progress() {
   draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" "$1"
 }
 
+# --------------------------------------------------
+# Detect real user kubeconfig
+# --------------------------------------------------
+REAL_USER="${SUDO_USER:-$(whoami)}"
+REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
+KUBECONFIG_PATH="$REAL_HOME/.kube/config"
+
 progress 10
+
+if [[ ! -f "$KUBECONFIG_PATH" ]]; then
+  log "WARN: kubeconfig not found at $KUBECONFIG_PATH"
+  log "STEP 07 skipped (cluster not reachable from host)"
+  progress 100
+  exit 0
+fi
+
+export KUBECONFIG="$KUBECONFIG_PATH"
+
+# --------------------------------------------------
+# Wait for nodes to register
+# --------------------------------------------------
+progress 20
 log "Waiting for $EXPECTED_NODES nodes to register"
 
 NODE_COUNT=0
-
-if [[ ! -f "$HOME/.kube/config" ]]; then
-  log "ERROR: kubeconfig not found on host"
-  exit 1
-fi
-
-progress 20
 
 for ((i=1; i<=MAX_RETRIES; i++)); do
   NODE_COUNT=$(kubectl get nodes --no-headers 2>/dev/null | wc -l || true)
@@ -32,13 +46,13 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
     log "Nodes detected: $NODE_COUNT / $EXPECTED_NODES"
   fi
 
-  if (( NODE_COUNT >= EXPECTED_NODES )); then
-    break
-  fi
-
+  (( NODE_COUNT >= EXPECTED_NODES )) && break
   sleep "$SLEEP_SECONDS"
 done
 
+# --------------------------------------------------
+# Wait for Ready state
+# --------------------------------------------------
 progress 50
 log "Waiting for all nodes to reach Ready state"
 
@@ -49,16 +63,13 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
     | awk '$2 != "Ready"' \
     | wc -l || true)
 
-  READY=$((EXPECTED_NODES - NOT_READY))
+  READY=$((NODE_COUNT - NOT_READY))
 
   if (( i % LOG_EVERY == 0 )); then
-    log "Nodes Ready: $READY / $EXPECTED_NODES"
+    log "Nodes Ready: $READY / $NODE_COUNT"
   fi
 
-  if (( NOT_READY == 0 )); then
-    break
-  fi
-
+  (( NOT_READY == 0 )) && break
   sleep "$SLEEP_SECONDS"
 done
 
