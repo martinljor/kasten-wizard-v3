@@ -15,13 +15,13 @@ log() {
 # --------------------------------------------------
 # VM sizing (IMPORTANT)
 # --------------------------------------------------
-DISK_SIZE="30G"
+DISK_SIZE="50G"
 
-MASTER_MEM=3072     # 3 GB
-WORKER_MEM=2560     # 2.5 GB
+MASTER_MEM=4096    
+WORKER_MEM=8192  
 
 MASTER_VCPUS=2
-WORKER_VCPUS=2
+WORKER_VCPUS=4
 
 # --------------------------------------------------
 # Cleanup existing VMs
@@ -123,6 +123,9 @@ runcmd:
   - hostnamectl set-hostname $name
   - echo $name > /etc/hostname
   - systemctl restart systemd-hostnamed || true
+  - systemctl enable --now qemu-guest-agent
+  - swapoff -a
+  - sed -i '/ swap / s/^/#/' /etc/fstab
 EOF
 
   echo "instance-id: $name" > "$CI_DIR/$name-meta-data.yaml"

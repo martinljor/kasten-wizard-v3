@@ -21,5 +21,11 @@ run_bg systemctl enable --now iscsid || true
 run_bg sysctl -w net.ipv4.ip_forward=1
 run_bg sysctl -w fs.inotify.max_user_watches=1048576
 
+log "Disabling swap on host"
+
+run_bg sudo swapoff -a || true
+run_bg sudo sed -i '/ swap / s/^/#/' /etc/fstab || true
+
+
 return 0
 
