@@ -18,10 +18,10 @@ log() {
 DISK_SIZE="50G"
 
 MASTER_MEM=4096    
-WORKER_MEM=8192  
+WORKER_MEM=4096 
 
 MASTER_VCPUS=4
-WORKER_VCPUS=4
+WORKER_VCPUS=8
 
 # --------------------------------------------------
 # Cleanup existing VMs
