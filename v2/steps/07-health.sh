@@ -5,8 +5,8 @@ STEP_NUM=7
 STEP_TITLE="K3S CLUSTER HEALTH CHECK"
 
 EXPECTED_NODES=3
-MAX_RETRIES=60
-SLEEP_SECONDS=5
+MAX_RETRIES=30
+SLEEP_SECONDS=10
 LOG_EVERY=2   # cada 10s
 
 progress() {
@@ -23,8 +23,8 @@ KUBECONFIG_PATH="$REAL_HOME/.kube/config"
 progress 10
 
 if [[ ! -f "$KUBECONFIG_PATH" ]]; then
-  log "WARN: kubeconfig not found at $KUBECONFIG_PATH"
-  log "STEP 07 skipped (cluster not reachable from host)"
+  run_bg "WARN: kubeconfig not found at $KUBECONFIG_PATH"
+  run_bg "STEP 07 skipped (cluster not reachable from host)"
   progress 100
   exit 0
 fi
@@ -35,7 +35,7 @@ export KUBECONFIG="$KUBECONFIG_PATH"
 # Wait for nodes to register
 # --------------------------------------------------
 progress 20
-log "Waiting for $EXPECTED_NODES nodes to register"
+run_bg "Waiting for $EXPECTED_NODES nodes to register"
 
 NODE_COUNT=0
 
