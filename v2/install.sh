@@ -130,9 +130,9 @@ step_timer_end 0
 sleep 1
 
 # ==================================================
-# STEP 3 – Required Tools
+# STEP 4 – Required Tools
 # ==================================================
-CURRENT_STEP=3
+CURRENT_STEP=4
 CURRENT_TITLE="INSTALLING REQUIRED TOOLS"
 
 step_timer_start
@@ -143,9 +143,9 @@ step_timer_end 0
 sleep 1
 
 # ==================================================
-# STEP 4 – VMs for K3s
+# STEP 5 – VMs for K3s
 # ==================================================
-CURRENT_STEP=4
+CURRENT_STEP=5
 CURRENT_TITLE="CREATING VMS"
 
 step_timer_start
@@ -156,9 +156,9 @@ step_timer_end 0
 sleep 1
 
 # ==================================================
-# STEP 5 – K3s Cluster
+# STEP 6 – K3s Cluster
 # ==================================================
-CURRENT_STEP=5
+CURRENT_STEP=6
 CURRENT_TITLE="INSTALLING K3S CLUSTER"
 
 step_timer_start
@@ -169,9 +169,9 @@ step_timer_end 0
 sleep 1
 
 # ==================================================
-# STEP 6 – K3s Health Check
+# STEP 7 – K3s Health Check
 # ==================================================
-CURRENT_STEP=6
+CURRENT_STEP=7
 CURRENT_TITLE="K3S CLUSTER HEALTH CHECK"
 
 step_timer_start
@@ -181,14 +181,7 @@ draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
 
-# ==================================================
-# STEP 7 – Final
-# ==================================================
-CURRENT_STEP=7
-CURRENT_TITLE="INSTALLATION COMPLETED"
 
-draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
-sleep 2
 
 # ==================================================
 # STEP 8 – Longhorn Storage

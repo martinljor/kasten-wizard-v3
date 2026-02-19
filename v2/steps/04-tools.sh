@@ -14,8 +14,7 @@ draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" 10
 # -------------------------------------------------
 # Base packages
 # -------------------------------------------------
-run_bg apt-get update -y
-draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" 20
+
 
 run_bg apt-get install -y \
   curl \
