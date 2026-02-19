@@ -28,19 +28,15 @@ run_bg helm repo update
 # --------------------------------------------------
 # Create namespace
 # --------------------------------------------------
-tmp_ns="/tmp/longhorn-ns.yaml"
-run_bg kubectl create namespace longhorn-system --dry-run=client -o yaml > "$tmp_ns"
-run_bg kubectl apply -f "$tmp_ns"
-run_bg rm -f "$tmp_ns"
 
-
+run_bg kubectl create namespace longhorn-system
 
 # --------------------------------------------------
 # Install Longhorn
 # --------------------------------------------------
 run_bg helm upgrade --install longhorn longhorn/longhorn \
   --namespace longhorn-system \
-  --set defaultSettings.defaultReplicaCount=2
+
 
 progress 40
 log "Waiting for Longhorn pods to be ready"
