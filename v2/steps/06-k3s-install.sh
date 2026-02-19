@@ -77,7 +77,7 @@ run_bg ansible-playbook -i "$ANSIBLE_DIR/inventory.ini" "$ANSIBLE_DIR/k3s.yml"
 # Fetch kubeconfig (CORRECT WAY)
 # --------------------------------------------------
 progress 70
-log "Fetching kubeconfig from k3s-master"
+run_bg echo "Fetching kubeconfig from k3s-master"
 
 KUBE_DIR="$REAL_HOME/.kube"
 mkdir -p "$KUBE_DIR"
@@ -93,7 +93,7 @@ sed -i "s/127.0.0.1/$MASTER_IP/" "$KUBE_DIR/config"
 chmod 600 "$KUBE_DIR/config"
 chown "$REAL_USER:$REAL_USER" "$KUBE_DIR/config"
 
-log "kubeconfig installed at $KUBE_DIR/config"
+run_bg echo "kubeconfig installed at $KUBE_DIR/config"
 
 progress 100
-log "STEP 06 completed successfully"
+run_bg echo  "STEP 06 completed successfully"
