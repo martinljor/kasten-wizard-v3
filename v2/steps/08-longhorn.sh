@@ -28,7 +28,12 @@ run_bg helm repo update
 # --------------------------------------------------
 # Create namespace
 # --------------------------------------------------
-run_bg kubectl create namespace longhorn-system --dry-run=client -o yaml | kubectl apply -f -
+tmp_ns="/tmp/longhorn-ns.yaml"
+run_bg kubectl create namespace longhorn-system --dry-run=client -o yaml > "$tmp_ns"
+run_bg kubectl apply -f "$tmp_ns"
+run_bg rm -f "$tmp_ns"
+
+
 
 # --------------------------------------------------
 # Install Longhorn
