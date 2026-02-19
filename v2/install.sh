@@ -40,13 +40,14 @@ run_bg() {
   echo "[$(date '+%F %T')] $*" >> "$LOG_FILE"
   "$@" >> "$LOG_FILE" 2>&1
 }
-export -f run_bg
-export LOG_FILE
+export STEP_LOG_FILE
+export START_TIME
+
 
 # --------------------------------------------------
 # Wizard state
 # --------------------------------------------------
-TOTAL_STEPS=8
+TOTAL_STEPS=9
 CURRENT_STEP=0
 CURRENT_TITLE=""
 
@@ -201,6 +202,20 @@ source ./steps/08-longhorn.sh
 draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
+
+# ==================================================
+# STEP 9 – Kasten K10
+# ==================================================
+CURRENT_STEP=9
+CURRENT_TITLE="INSTALLING KASTEN K10"
+
+step_timer_start
+draw_step 9 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+source ./steps/09-k10-install.sh
+draw_step 9 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+step_timer_end 0
+sleep 1
+
 
 
 # --------------------------------------------------
