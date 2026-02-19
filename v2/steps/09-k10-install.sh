@@ -64,6 +64,32 @@ metadata:
   namespace: metallb-system
 spec: {}
 EOF
+log "Waiting for MetalLB components to be ready (controller/speaker/webhook)"
+
+# controller + speaker
+kube_u kubectl rollout status -n metallb-system deploy/metallb-controller --timeout=5m
+kube_u kubectl rollout status -n metallb-system ds/metallb-speaker --timeout=5m || true
+
+# webhook (deploy name may vary; try common ones)
+kube_u kubectl get deploy -n metallb-system metallb-webhook >/dev/null 2>&1 \
+  && kube_u kubectl rollout status -n metallb-system deploy/metallb-webhook --timeout=5m || true
+
+# wait until webhook service has endpoints (this is what your error shows)
+for i in {1..60}; do
+  EP_COUNT=$(sudo -u "$REAL_USER" -E env HOME="$REAL_HOME" KUBECONFIG="$REAL_HOME/.kube/config" \
+    kubectl get endpoints -n metallb-system metallb-webhook-service \
+    -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null | wc -w | xargs || true)
+
+  if [[ "${EP_COUNT}" != "0" ]]; then
+    log "MetalLB webhook endpoints ready ($EP_COUNT)"
+    break
+  fi
+
+  if (( i % 6 == 0 )); then
+    log "Waiting for MetalLB webhook endpoints..."
+  fi
+  sleep 5
+done
 
 kube_u kubectl apply -f /tmp/metallb-pool.yaml
 run_bg rm -f /tmp/metallb-pool.yaml
