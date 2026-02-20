@@ -1,12 +1,18 @@
-#!/usr/bin/env bash
+\#!/usr/bin/env bash
 set -Eeuo pipefail
 
 SUMMARY_STEP="$TOTAL_STEPS"
-SUMMARY_TITLE="Summary"
+SUMMARY_TITLE="INSTALLATION COMPLETED"
 
+# Dibuja el panel final (100%)
 draw_step "$SUMMARY_STEP" "$TOTAL_STEPS" "$SUMMARY_TITLE" 100
 
-ROW=5
+ROW=4
+
+# --------------------------------------------------
+# Header "final"
+# --------------------------------------------------
+print_green_line "KASTEN LAB INSTALLATION COMPLETED" "$ROW"; ((ROW+=2))
 
 # --------------------------------------------------
 # Time summary
@@ -14,73 +20,61 @@ ROW=5
 END_TIME=$(date +%s)
 TOTAL_TIME=$((END_TIME - START_TIME))
 
-print_green_line "Total execution time : ${TOTAL_TIME}s" "$ROW"; ((ROW++))
-print_green_line "Last step reached    : $CURRENT_STEP / $TOTAL_STEPS" "$ROW"; ((ROW+=2))
+TOTAL_MIN=$((TOTAL_TIME / 60))
+TOTAL_SEC=$((TOTAL_TIME % 60))
+
+print_green_line "Total execution time: ${TOTAL_MIN} min ${TOTAL_SEC} sec" "$ROW"; ((ROW+=2))
 
 # --------------------------------------------------
-# Kubeconfig detection
+# Try to detect K10 URL (best-effort)
+# - Prefer Ingress LB IP: ingress-nginx-controller EXTERNAL-IP
+# - Fallback: read from log (last "K10 URL")
 # --------------------------------------------------
+K10_URL="N/A"
+
+# Detect kubeconfig to query cluster
 KUBECONFIG_CANDIDATES=(
   "$HOME/.kube/config"
   "/root/.kube/config"
-  "/etc/rancher/k3s/k3s.yaml"
 )
 
 FOUND_KUBECONFIG=""
-
 for cfg in "${KUBECONFIG_CANDIDATES[@]}"; do
-  if [[ -s "$cfg" ]]; then
+  if [[ -f "$cfg" ]]; then
     FOUND_KUBECONFIG="$cfg"
     break
   fi
 done
 
-# --------------------------------------------------
-# Kubernetes status
-# --------------------------------------------------
 if [[ -n "$FOUND_KUBECONFIG" ]]; then
   export KUBECONFIG="$FOUND_KUBECONFIG"
 
-  if kubectl cluster-info >/dev/null 2>&1; then
-    NODE_TOTAL=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | xargs)
-    NODE_READY=$(kubectl get nodes --no-headers 2>/dev/null | awk '$2=="Ready"' | wc -l | xargs)
-    print_green_line "Kubernetes nodes     : ${NODE_READY} / ${NODE_TOTAL} Ready" "$ROW"
-  else
-    print_green_line "Kubernetes           : API not reachable" "$ROW"
+  # Try LB External IP from ingress-nginx
+  LB_IP="$(kubectl -n ingress-nginx get svc ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"
+  if [[ -n "${LB_IP:-}" ]]; then
+    K10_URL="http://${LB_IP}/"
   fi
-else
-  print_green_line "Kubernetes           : kubeconfig not found" "$ROW"
 fi
 
-((ROW+=2))
-
-# --------------------------------------------------
-# Access Summary (URLs + creds)
-# --------------------------------------------------
-ACCESS_FILE="/var/log/k10-mj/access-summary.log"
-
-print_green_line "Access URLs:" "$ROW"; ((ROW++))
-
-if [[ -s "$ACCESS_FILE" ]]; then
-  # mostramos hasta 6 entradas para no romper el panel
-  i=0
-  while IFS= read -r line; do
-    [[ -z "$line" ]] && continue
-    print_green_line "$line" "$ROW"; ((ROW++))
-    ((i++))
-    [[ "$i" -ge 6 ]] && break
-  done < "$ACCESS_FILE"
-else
-  print_green_line "N/A (no services exposed yet)" "$ROW"; ((ROW++))
+# Fallback: last URL in log if present
+if [[ "$K10_URL" == "N/A" && -f "$LOG_FILE" ]]; then
+  # Examples you've logged:
+  # [INFO] K10 URL (IP): http://192.168.122.200/
+  # [INFO] K10 URL: https://k10.192.168.122.nip.io ...
+  LAST_URL="$(grep -Eo 'K10 URL[^:]*: (https?://[^ ]+)' "$LOG_FILE" 2>/dev/null | tail -n 1 | sed -E 's/.*: (https?:\/\/[^ ]+).*/\1/' || true)"
+  if [[ -n "${LAST_URL:-}" ]]; then
+    K10_URL="$LAST_URL"
+  fi
 fi
 
-((ROW+=1))
+print_green_line "Kasten K10 Dashboard: ${K10_URL}" "$ROW"; ((ROW+=2))
 
 # --------------------------------------------------
 # Logs
 # --------------------------------------------------
-print_green_line "Logs available at:" "$ROW"; ((ROW++))
+print_green_line "If you want to check logs available at:" "$ROW"; ((ROW++))
 print_green_line "$LOG_FILE" "$ROW"; ((ROW++))
 print_green_line "$STEP_LOG_FILE" "$ROW"
 
-sleep 5
+# Pausa para que se vea
+sleep 4
