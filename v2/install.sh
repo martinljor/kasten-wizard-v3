@@ -7,7 +7,6 @@ set -Eeuo pipefail
 clear
 source ./ui.sh
 
-
 START_TS=$(date +%s)
 LAST_COMPLETED_STEP=0
 trap user_abort INT TERM
@@ -15,13 +14,11 @@ trap user_abort INT TERM
 EXPECTED_NODES=3
 export EXPECTED_NODES
 
-
 user_abort() {
   CURRENT_TITLE="ABORTED BY USER"
   draw_abort "$CURRENT_STEP" "$TOTAL_STEPS" "$CURRENT_TITLE"
   exit 130
 }
-
 
 # --------------------------------------------------
 # Log setup
@@ -43,7 +40,6 @@ run_bg() {
 export STEP_LOG_FILE
 export START_TIME
 
-
 # --------------------------------------------------
 # Wizard state
 # --------------------------------------------------
@@ -52,6 +48,12 @@ CURRENT_STEP=0
 CURRENT_TITLE=""
 
 START_TIME=$(date +%s)
+
+# --------------------------------------------------
+# Step state (prevents OK+FAILED duplication)
+# --------------------------------------------------
+STEP_CLOSED=0
+STEP_RC=0
 
 # --------------------------------------------------
 # Step timers & status
@@ -84,7 +86,8 @@ step_timer_end() {
 # --------------------------------------------------
 cleanup() {
   enable_terminal_input
-  source ./steps/99-final-summary.sh
+  # Never fail cleanup/final-summary
+  source ./steps/99-final-summary.sh || true
 
   echo
   echo "Logs available at:"
@@ -96,7 +99,15 @@ trap cleanup EXIT
 # --------------------------------------------------
 # Error handler (keeps UI behavior)
 # --------------------------------------------------
-trap 'step_timer_end $?; draw_error "$CURRENT_STEP" "$TOTAL_STEPS" "$CURRENT_TITLE" "$LOG_FILE"' ERR
+trap 'rc=$?;
+  # If the current step was already closed/logged, do NOT re-log it as FAILED.
+  if [[ "${STEP_CLOSED:-0}" -eq 1 ]]; then
+    draw_error "$CURRENT_STEP" "$TOTAL_STEPS" "$CURRENT_TITLE" "$LOG_FILE"
+    exit "$rc"
+  fi
+  step_timer_end "$rc"
+  draw_error "$CURRENT_STEP" "$TOTAL_STEPS" "$CURRENT_TITLE" "$LOG_FILE"
+' ERR
 
 # --------------------------------------------------
 # Confirmation
@@ -181,8 +192,6 @@ draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
 
-
-
 # ==================================================
 # STEP 8 – Longhorn Storage
 # ==================================================
@@ -202,14 +211,22 @@ sleep 1
 CURRENT_STEP=9
 CURRENT_TITLE="INSTALLING KASTEN K10"
 
+STEP_CLOSED=0
+STEP_RC=0
 step_timer_start
 draw_step 9 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-source ./steps/09-k10-install.sh
+
+source ./steps/09-k10-install.sh || STEP_RC=$?
+
 draw_step 9 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
-step_timer_end 0
+step_timer_end "$STEP_RC"
+STEP_CLOSED=1
 sleep 1
 
-
+# If step 9 failed, stop here (avoid summary masking / double-logging)
+if (( STEP_RC != 0 )); then
+  exit "$STEP_RC"
+fi
 
 # --------------------------------------------------
 # Total execution time
@@ -218,7 +235,7 @@ END_TIME=$(date +%s)
 ELAPSED=$((END_TIME - START_TIME))
 echo "[INFO] Wizard execution time: ${ELAPSED}s" >> "$LOG_FILE"
 
-source ./steps/99-summary.sh
-
+# Summary should never fail the wizard
+source ./steps/99-summary.sh || true
 
 exit 0
