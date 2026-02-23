@@ -33,9 +33,8 @@ run_bg systemctl enable --now libvirtd
 progress 30
 
 # -------------------------------------------------
-# Create bridge br0 (non-interactive, NO rollback)
+# Create bridge br0 (NO rollback)
 # - Moves current uplink IPv4 config (IP/prefix + gw + DNS) to br0
-# - Applies immediately
 # -------------------------------------------------
 BRIDGE_NAME="br0"
 NETPLAN_FILE="/etc/netplan/01-k10-br0.yaml"
@@ -43,7 +42,7 @@ NETPLAN_FILE="/etc/netplan/01-k10-br0.yaml"
 if ! ip link show "$BRIDGE_NAME" >/dev/null 2>&1; then
   log "Bridge $BRIDGE_NAME not found. Creating it with netplan (NO rollback) and preserving current NIC IP..."
 
-  # Detect uplink interface (default route first, fallback to first real NIC)
+  # Detect uplink interface (default route first)
   UPLINK_IF="$(ip route show default 2>/dev/null | awk '{print $5; exit}' || true)"
   if [[ -z "${UPLINK_IF:-}" ]]; then
     UPLINK_IF="$(ls /sys/class/net | grep -Ev '^(lo|virbr|vnet|docker|br-|cni|flannel|tun|tap)' | head -n1 || true)"
@@ -54,32 +53,33 @@ if ! ip link show "$BRIDGE_NAME" >/dev/null 2>&1; then
   fi
   log "Detected uplink interface: $UPLINK_IF"
 
-  # Capture current IPv4 (CIDR) on uplink
+  # Current IPv4 (CIDR) and gateway for that interface
   CUR_ADDR="$(ip -4 -o addr show dev "$UPLINK_IF" scope global 2>/dev/null | awk '{print $4}' | head -n1 || true)"
   CUR_GW="$(ip route show default dev "$UPLINK_IF" 2>/dev/null | awk '{print $3; exit}' || true)"
 
-  # Capture DNS (prefer resolvectl for systemd-resolved; fallback to /etc/resolv.conf)
-  DNS_LIST="$(resolvectl dns "$UPLINK_IF" 2>/dev/null | awk '{for(i=2;i<=NF;i++) print $i}' | tr '\n' ' ' | xargs || true)"
+  # DNS: prefer systemd-resolved per-interface; fallback to /etc/resolv.conf
+  DNS_LIST=""
+  if command -v resolvectl >/dev/null 2>&1; then
+    # Example output:
+    # Link 2 (ens34): 172.17.2.7
+    DNS_LIST="$(resolvectl dns "$UPLINK_IF" 2>/dev/null \
+      | sed -n 's/.*):[[:space:]]*//p' \
+      | tr ' ' '\n' \
+      | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' \
+      | xargs || true)"
+  fi
   if [[ -z "${DNS_LIST:-}" ]]; then
-    DNS_LIST="$(awk '/^nameserver[[:space:]]+/{print $2}' /etc/resolv.conf 2>/dev/null | tr '\n' ' ' | xargs || true)"
+    DNS_LIST="$(awk '/^nameserver[[:space:]]+/{print $2}' /etc/resolv.conf 2>/dev/null \
+      | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' \
+      | xargs || true)"
   fi
 
   if [[ -n "${CUR_ADDR:-}" ]]; then
     log "Preserving IPv4: $CUR_ADDR (gw: ${CUR_GW:-none}, dns: ${DNS_LIST:-none})"
 
-    # Build YAML snippets conditionally
-    GW_LINE=""
-    [[ -n "${CUR_GW:-}" ]] && GW_LINE="      gateway4: ${CUR_GW}"
-
-    NS_BLOCK=""
-    if [[ -n "${DNS_LIST:-}" ]]; then
-      # Convert "1.1.1.1 8.8.8.8" -> "1.1.1.1, 8.8.8.8"
-      DNS_YAML="$(echo "$DNS_LIST" | sed 's/[[:space:]]\+/, /g')"
-      NS_BLOCK="      nameservers:
-        addresses: [${DNS_YAML}]"
-    fi
-
-    cat > "$NETPLAN_FILE" <<EOF
+    # Build YAML safely with correct indentation
+    {
+      cat <<EOF
 network:
   version: 2
   renderer: networkd
@@ -91,12 +91,26 @@ network:
     ${BRIDGE_NAME}:
       interfaces: [${UPLINK_IF}]
       addresses: [${CUR_ADDR}]
-${GW_LINE}
-${NS_BLOCK}
+EOF
+
+      if [[ -n "${CUR_GW:-}" ]]; then
+        echo "      gateway4: ${CUR_GW}"
+      fi
+
+      if [[ -n "${DNS_LIST:-}" ]]; then
+        DNS_YAML="$(echo "$DNS_LIST" | sed 's/[[:space:]]\+/, /g')"
+        cat <<EOF
+      nameservers:
+        addresses: [${DNS_YAML}]
+EOF
+      fi
+
+      cat <<EOF
       parameters:
         stp: false
         forward-delay: 0
 EOF
+    } > "$NETPLAN_FILE"
 
   else
     log "No static IPv4 detected on $UPLINK_IF. Falling back to DHCP on bridge (IP may change)."
