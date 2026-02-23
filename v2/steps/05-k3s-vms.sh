@@ -15,10 +15,10 @@ log() {
 # --------------------------------------------------
 # VM sizing (IMPORTANT)
 # --------------------------------------------------
-DISK_SIZE="50G"
+DISK_SIZE="70G"
 
 MASTER_MEM=4096    
-WORKER_MEM=4096 
+WORKER_MEM=8192 
 
 MASTER_VCPUS=4
 WORKER_VCPUS=8
