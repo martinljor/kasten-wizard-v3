@@ -33,14 +33,17 @@ run_bg systemctl enable --now libvirtd
 progress 30
 
 # -------------------------------------------------
-# Create bridge br0 safely (avoid cutting SSH)
-# Uses: netplan try (auto-rollback) + delayed apply in background
+# Create bridge br0 safely (non-interactive)
+# - Apply in background
+# - Auto-rollback in 30s unless we cancel it
 # -------------------------------------------------
 BRIDGE_NAME="br0"
 NETPLAN_FILE="/etc/netplan/01-k10-br0.yaml"
+ROLLBACK_FILE="/etc/netplan/01-k10-br0.rollback.yaml"
+ROLLBACK_MARK="/run/k10-netplan-rollback-needed"
 
 if ! ip link show "$BRIDGE_NAME" >/dev/null 2>&1; then
-  log "Bridge $BRIDGE_NAME not found. Creating it with netplan (SAFE mode)..."
+  log "Bridge $BRIDGE_NAME not found. Creating it with netplan (SAFE apply + auto-rollback)..."
 
   UPLINK_IF="$(ip route show default 2>/dev/null | awk '{print $5; exit}' || true)"
   if [[ -z "${UPLINK_IF:-}" ]]; then
@@ -50,10 +53,13 @@ if ! ip link show "$BRIDGE_NAME" >/dev/null 2>&1; then
     log "ERROR: Unable to detect uplink interface for bridge creation."
     exit 1
   fi
-
   log "Detected uplink interface: $UPLINK_IF"
 
-  # Write netplan file
+  # Backup all netplan files for rollback
+  run_bg bash -c "cat /etc/netplan/*.yaml 2>/dev/null > '$ROLLBACK_FILE' || true"
+  run_bg bash -c "touch '$ROLLBACK_MARK'"
+
+  # Write dedicated bridge netplan
   cat > "$NETPLAN_FILE" <<EOF
 network:
   version: 2
@@ -71,32 +77,27 @@ network:
 EOF
   run_bg chmod 600 "$NETPLAN_FILE"
 
-  # IMPORTANT:
-  # - netplan try requires interactive confirmation -> NOT possible in a zero-interaction wizard.
-  # - We run it in a detached background session with a short timeout.
-  # - If SSH drops, netplan will rollback automatically after timeout.
-  #
-  # If SSH survives, we'll later confirm by applying permanently in a second background job.
-  log "Running 'netplan try' with auto-rollback (timeout 20s). If SSH drops, it will revert."
+  # Schedule rollback in 30s (only if mark exists)
+  log "Scheduling auto-rollback in 30s (will be cancelled if network is OK)"
+  run_bg bash -c "nohup sh -c 'sleep 30; if [ -f \"$ROLLBACK_MARK\" ]; then echo \"[ROLLBACK] reverting netplan\" >> \"$LOG_FILE\"; rm -f /etc/netplan/01-k10-br0.yaml; cp -f \"$ROLLBACK_FILE\" /etc/netplan/99-rollback.yaml 2>/dev/null || true; netplan apply >> \"$LOG_FILE\" 2>&1 || true; fi' >/dev/null 2>&1 &"
 
-  # Start netplan try in background (no hang in wizard)
-  # Note: netplan try default timeout is 120s, we force 20s.
-  run_bg bash -c "nohup sh -c 'netplan try --timeout 20 >/var/log/k10-mj/netplan-try.log 2>&1' >/dev/null 2>&1 &"
+  # Apply in background (may temporarily drop SSH)
+  log "Applying netplan in background"
+  run_bg bash -c "nohup sh -c 'netplan apply >> \"$LOG_FILE\" 2>&1' >/dev/null 2>&1 &"
 
-  # Give it a moment to switch
-  sleep 6
+  # Wait a bit and verify br0 got IPv4
+  sleep 8
 
-  # Check if br0 came up with IPv4
   if ip link show "$BRIDGE_NAME" >/dev/null 2>&1 && ip -4 addr show "$BRIDGE_NAME" | grep -q "inet "; then
     BR0_IP="$(ip -4 addr show "$BRIDGE_NAME" | awk '/inet /{print $2}' | head -n1)"
-    log "Bridge $BRIDGE_NAME is up (temporary) with IP: $BR0_IP"
+    log "Bridge $BRIDGE_NAME is up with IP: $BR0_IP"
 
-    # Now apply permanently (also in background to avoid blocking)
-    log "Applying netplan permanently in background"
-    run_bg bash -c "nohup sh -c 'netplan apply >/var/log/k10-mj/netplan-apply.log 2>&1' >/dev/null 2>&1 &"
+    # Cancel rollback
+    run_bg rm -f "$ROLLBACK_MARK"
+    log "Auto-rollback cancelled (network looks OK)"
   else
-    log "ERROR: Bridge $BRIDGE_NAME did not come up (or DHCP failed)."
-    log "Check /var/log/k10-mj/netplan-try.log"
+    log "ERROR: Bridge $BRIDGE_NAME did not come up (or DHCP failed). Rollback will run automatically."
+    log "Tip: on ESXi PortGroup enable Promiscuous/MAC Changes/Forged Transmits."
     exit 1
   fi
 else
