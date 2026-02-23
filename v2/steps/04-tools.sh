@@ -33,9 +33,9 @@ run_bg systemctl enable --now libvirtd
 progress 30
 
 # -------------------------------------------------
-# Create bridge br0 safely (non-interactive)
-# - Apply in background
-# - Auto-rollback in 30s unless we cancel it
+# Create bridge br0 (non-interactive, no-wait)
+# - Apply in background immediately
+# - Auto-rollback in 30s unless we cancel it (we DON'T cancel here)
 # -------------------------------------------------
 BRIDGE_NAME="br0"
 NETPLAN_FILE="/etc/netplan/01-k10-br0.yaml"
@@ -43,7 +43,7 @@ ROLLBACK_FILE="/etc/netplan/01-k10-br0.rollback.yaml"
 ROLLBACK_MARK="/run/k10-netplan-rollback-needed"
 
 if ! ip link show "$BRIDGE_NAME" >/dev/null 2>&1; then
-  log "Bridge $BRIDGE_NAME not found. Creating it with netplan (SAFE apply + auto-rollback)..."
+  log "Bridge $BRIDGE_NAME not found. Creating it with netplan (apply now, no wait)..."
 
   UPLINK_IF="$(ip route show default 2>/dev/null | awk '{print $5; exit}' || true)"
   if [[ -z "${UPLINK_IF:-}" ]]; then
@@ -78,33 +78,18 @@ EOF
   run_bg chmod 600 "$NETPLAN_FILE"
 
   # Schedule rollback in 30s (only if mark exists)
-  log "Scheduling auto-rollback in 30s (will be cancelled if network is OK)"
+  log "Scheduling auto-rollback in 30s"
   run_bg bash -c "nohup sh -c 'sleep 30; if [ -f \"$ROLLBACK_MARK\" ]; then echo \"[ROLLBACK] reverting netplan\" >> \"$LOG_FILE\"; rm -f /etc/netplan/01-k10-br0.yaml; cp -f \"$ROLLBACK_FILE\" /etc/netplan/99-rollback.yaml 2>/dev/null || true; netplan apply >> \"$LOG_FILE\" 2>&1 || true; fi' >/dev/null 2>&1 &"
 
   # Apply in background (may temporarily drop SSH)
-  log "Applying netplan in background"
+  log "Applying netplan in background (no wait)"
   run_bg bash -c "nohup sh -c 'netplan apply >> \"$LOG_FILE\" 2>&1' >/dev/null 2>&1 &"
 
-  # Wait a bit and verify br0 got IPv4
-  sleep 8
-
-  if ip link show "$BRIDGE_NAME" >/dev/null 2>&1 && ip -4 addr show "$BRIDGE_NAME" | grep -q "inet "; then
-    BR0_IP="$(ip -4 addr show "$BRIDGE_NAME" | awk '/inet /{print $2}' | head -n1)"
-    log "Bridge $BRIDGE_NAME is up with IP: $BR0_IP"
-
-    # Cancel rollback
-    run_bg rm -f "$ROLLBACK_MARK"
-    log "Auto-rollback cancelled (network looks OK)"
-  else
-    log "ERROR: Bridge $BRIDGE_NAME did not come up (or DHCP failed). Rollback will run automatically."
-    log "Tip: on ESXi PortGroup enable Promiscuous/MAC Changes/Forged Transmits."
-    exit 1
-  fi
+  # No wait / no verification / no rollback cancel here
 else
   BR0_IP="$(ip -4 addr show "$BRIDGE_NAME" | awk '/inet /{print $2}' | head -n1 || true)"
   log "Bridge $BRIDGE_NAME already exists (IP: ${BR0_IP:-none})"
 fi
-
 progress 45
 
 # -------------------------------------------------
