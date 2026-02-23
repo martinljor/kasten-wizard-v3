@@ -23,8 +23,8 @@ KUBECONFIG_PATH="$REAL_HOME/.kube/config"
 progress 10
 
 if [[ ! -f "$KUBECONFIG_PATH" ]]; then
-  run_bg echo "WARN: kubeconfig not found at $KUBECONFIG_PATH"
-  run_bg echo "STEP 07 skipped (cluster not reachable from host)"
+  log echo "WARN: kubeconfig not found at $KUBECONFIG_PATH"
+  log echo "STEP 07 skipped (cluster not reachable from host)"
   progress 100
   exit 0
 fi
@@ -35,7 +35,7 @@ export KUBECONFIG="$KUBECONFIG_PATH"
 # Wait for nodes to register
 # --------------------------------------------------
 progress 20
-run_bg echo "Waiting for $EXPECTED_NODES nodes to register"
+log echo "Waiting for $EXPECTED_NODES nodes to register"
 
 NODE_COUNT=0
 
@@ -43,7 +43,7 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
   NODE_COUNT=$(kubectl get nodes --no-headers 2>/dev/null | wc -l || true)
 
   if (( i % LOG_EVERY == 0 )); then
-    run_bg echo "Nodes detected: $NODE_COUNT / $EXPECTED_NODES"
+    log echo "Nodes detected: $NODE_COUNT / $EXPECTED_NODES"
   fi
 
   (( NODE_COUNT >= EXPECTED_NODES )) && break
@@ -54,7 +54,7 @@ done
 # Wait for Ready state
 # --------------------------------------------------
 progress 50
-run_bg echo "Waiting for all nodes to reach Ready state"
+log echo "Waiting for all nodes to reach Ready state"
 
 NOT_READY=1
 
@@ -66,12 +66,12 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
   READY=$((NODE_COUNT - NOT_READY))
 
   if (( i % LOG_EVERY == 0 )); then
-    run_bg echo "Nodes Ready: $READY / $NODE_COUNT"
+    log echo "Nodes Ready: $READY / $NODE_COUNT"
   fi
 
-  (( NOT_READY == 0 )) && break
+  (( NOßT_READY == 0 )) && break
   sleep "$SLEEP_SECONDS"
 done
 
 progress 100
-run_bg echo "STEP 07 completed (cluster reachable, readiness checked)"
+log echo "STEP 07 completed (cluster reachable, readiness checked)"
