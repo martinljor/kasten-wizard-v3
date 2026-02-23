@@ -33,18 +33,17 @@ run_bg systemctl enable --now libvirtd
 progress 30
 
 # -------------------------------------------------
-# Create bridge br0 (non-interactive, no-wait)
-# - Apply in background immediately
-# - Auto-rollback in 30s unless we cancel it (we DON'T cancel here)
+# Create bridge br0 (non-interactive, NO rollback)
+# - Moves current uplink IPv4 config (IP/prefix + gw + DNS) to br0
+# - Applies immediately
 # -------------------------------------------------
 BRIDGE_NAME="br0"
 NETPLAN_FILE="/etc/netplan/01-k10-br0.yaml"
-ROLLBACK_FILE="/etc/netplan/01-k10-br0.rollback.yaml"
-ROLLBACK_MARK="/run/k10-netplan-rollback-needed"
 
 if ! ip link show "$BRIDGE_NAME" >/dev/null 2>&1; then
-  log "Bridge $BRIDGE_NAME not found. Creating it with netplan (apply now, no wait)..."
+  log "Bridge $BRIDGE_NAME not found. Creating it with netplan (NO rollback) and preserving current NIC IP..."
 
+  # Detect uplink interface (default route first, fallback to first real NIC)
   UPLINK_IF="$(ip route show default 2>/dev/null | awk '{print $5; exit}' || true)"
   if [[ -z "${UPLINK_IF:-}" ]]; then
     UPLINK_IF="$(ls /sys/class/net | grep -Ev '^(lo|virbr|vnet|docker|br-|cni|flannel|tun|tap)' | head -n1 || true)"
@@ -55,18 +54,61 @@ if ! ip link show "$BRIDGE_NAME" >/dev/null 2>&1; then
   fi
   log "Detected uplink interface: $UPLINK_IF"
 
-  # Backup all netplan files for rollback
-  run_bg bash -c "cat /etc/netplan/*.yaml 2>/dev/null > '$ROLLBACK_FILE' || true"
-  run_bg bash -c "touch '$ROLLBACK_MARK'"
+  # Capture current IPv4 (CIDR) on uplink
+  CUR_ADDR="$(ip -4 -o addr show dev "$UPLINK_IF" scope global 2>/dev/null | awk '{print $4}' | head -n1 || true)"
+  CUR_GW="$(ip route show default dev "$UPLINK_IF" 2>/dev/null | awk '{print $3; exit}' || true)"
 
-  # Write dedicated bridge netplan
-  cat > "$NETPLAN_FILE" <<EOF
+  # Capture DNS (prefer resolvectl for systemd-resolved; fallback to /etc/resolv.conf)
+  DNS_LIST="$(resolvectl dns "$UPLINK_IF" 2>/dev/null | awk '{for(i=2;i<=NF;i++) print $i}' | tr '\n' ' ' | xargs || true)"
+  if [[ -z "${DNS_LIST:-}" ]]; then
+    DNS_LIST="$(awk '/^nameserver[[:space:]]+/{print $2}' /etc/resolv.conf 2>/dev/null | tr '\n' ' ' | xargs || true)"
+  fi
+
+  if [[ -n "${CUR_ADDR:-}" ]]; then
+    log "Preserving IPv4: $CUR_ADDR (gw: ${CUR_GW:-none}, dns: ${DNS_LIST:-none})"
+
+    # Build YAML snippets conditionally
+    GW_LINE=""
+    [[ -n "${CUR_GW:-}" ]] && GW_LINE="      gateway4: ${CUR_GW}"
+
+    NS_BLOCK=""
+    if [[ -n "${DNS_LIST:-}" ]]; then
+      # Convert "1.1.1.1 8.8.8.8" -> "1.1.1.1, 8.8.8.8"
+      DNS_YAML="$(echo "$DNS_LIST" | sed 's/[[:space:]]\+/, /g')"
+      NS_BLOCK="      nameservers:
+        addresses: [${DNS_YAML}]"
+    fi
+
+    cat > "$NETPLAN_FILE" <<EOF
 network:
   version: 2
   renderer: networkd
   ethernets:
     ${UPLINK_IF}:
       dhcp4: no
+      dhcp6: no
+  bridges:
+    ${BRIDGE_NAME}:
+      interfaces: [${UPLINK_IF}]
+      addresses: [${CUR_ADDR}]
+${GW_LINE}
+${NS_BLOCK}
+      parameters:
+        stp: false
+        forward-delay: 0
+EOF
+
+  else
+    log "No static IPv4 detected on $UPLINK_IF. Falling back to DHCP on bridge (IP may change)."
+
+    cat > "$NETPLAN_FILE" <<EOF
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    ${UPLINK_IF}:
+      dhcp4: no
+      dhcp6: no
   bridges:
     ${BRIDGE_NAME}:
       interfaces: [${UPLINK_IF}]
@@ -75,17 +117,15 @@ network:
         stp: false
         forward-delay: 0
 EOF
-  run_bg chmod 600 "$NETPLAN_FILE"
+  fi
 
-  # Schedule rollback in 30s (only if mark exists)
-  log "Scheduling auto-rollback in 30s"
-  run_bg bash -c "nohup sh -c 'sleep 30; if [ -f \"$ROLLBACK_MARK\" ]; then echo \"[ROLLBACK] reverting netplan\" >> \"$LOG_FILE\"; rm -f /etc/netplan/01-k10-br0.yaml; cp -f \"$ROLLBACK_FILE\" /etc/netplan/99-rollback.yaml 2>/dev/null || true; netplan apply >> \"$LOG_FILE\" 2>&1 || true; fi' >/dev/null 2>&1 &"
+  chmod 600 "$NETPLAN_FILE"
 
-  # Apply in background (may temporarily drop SSH)
-  log "Applying netplan in background (no wait)"
-  run_bg bash -c "nohup sh -c 'netplan apply >> \"$LOG_FILE\" 2>&1' >/dev/null 2>&1 &"
+  log "Applying netplan now (may temporarily drop SSH)"
+  netplan apply >> "$LOG_FILE" 2>&1 || { log "ERROR: netplan apply failed"; exit 1; }
 
-  # No wait / no verification / no rollback cancel here
+  log "Done. Current br0 IPv4:"
+  ip -4 addr show "$BRIDGE_NAME" | awk '/inet /{print " - " $2}'
 else
   BR0_IP="$(ip -4 addr show "$BRIDGE_NAME" | awk '/inet /{print $2}' | head -n1 || true)"
   log "Bridge $BRIDGE_NAME already exists (IP: ${BR0_IP:-none})"
