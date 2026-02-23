@@ -31,11 +31,11 @@ run_bg apt-get install -y \
 run_bg systemctl enable --now libvirtd
 
 progress 30
-
 # -------------------------------------------------
 # Create bridge br0 for KVM (NO rollback, NO wait)
-# - ens34 becomes a bridge port (no IP)
-# - br0 gets DHCP
+# - uplink becomes bridge port (no IP on NIC)
+# - br0 gets DHCP (may take a few seconds)
+# - fix netplan file permissions warnings
 # -------------------------------------------------
 BRIDGE_NAME="br0"
 NETPLAN_FILE="/etc/netplan/01-k10-br0.yaml"
@@ -70,15 +70,22 @@ network:
         forward-delay: 0
 EOF
 
-  chmod 600 "$NETPLAN_FILE"
+  # Fix permissions warnings (including other netplan yamls)
+  chown root:root /etc/netplan/*.yaml 2>/dev/null || true
+  chmod 600 /etc/netplan/*.yaml 2>/dev/null || true
 
   log "Applying netplan now (may drop SSH)"
   netplan apply >> "$LOG_FILE" 2>&1 || { log "ERROR: netplan apply failed"; exit 1; }
 
-  log "Bridge created. br0 IPv4:"
-  ip -4 addr show "$BRIDGE_NAME" | awk '/inet /{print " - " $2}'
+  log "Bridge created. br0 IPv4 (DHCP may take a few seconds):"
+  BR0_IP="$(ip -4 -o addr show dev "$BRIDGE_NAME" | awk '{print $4}' | head -n1 || true)"
+  if [[ -n "${BR0_IP:-}" ]]; then
+    log " - ${BR0_IP}"
+  else
+    log " - (not yet assigned)"
+  fi
 else
-  BR0_IP="$(ip -4 addr show "$BRIDGE_NAME" | awk '/inet /{print $2}' | head -n1 || true)"
+  BR0_IP="$(ip -4 -o addr show dev "$BRIDGE_NAME" | awk '{print $4}' | head -n1 || true)"
   log "Bridge $BRIDGE_NAME already exists (IP: ${BR0_IP:-none})"
 fi
 progress 45
