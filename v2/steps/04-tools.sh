@@ -33,16 +33,16 @@ run_bg systemctl enable --now libvirtd
 progress 30
 
 # -------------------------------------------------
-# Create bridge br0 (NO rollback)
-# - Moves current uplink IPv4 config (IP/prefix + gw + DNS) to br0
+# Create bridge br0 for KVM (NO rollback, NO wait)
+# - ens34 becomes a bridge port (no IP)
+# - br0 gets DHCP
 # -------------------------------------------------
 BRIDGE_NAME="br0"
 NETPLAN_FILE="/etc/netplan/01-k10-br0.yaml"
 
 if ! ip link show "$BRIDGE_NAME" >/dev/null 2>&1; then
-  log "Bridge $BRIDGE_NAME not found. Creating it with netplan (NO rollback) and preserving current NIC IP..."
+  log "Bridge $BRIDGE_NAME not found. Creating it with netplan (br0 DHCP, no rollback)..."
 
-  # Detect uplink interface (default route first)
   UPLINK_IF="$(ip route show default 2>/dev/null | awk '{print $5; exit}' || true)"
   if [[ -z "${UPLINK_IF:-}" ]]; then
     UPLINK_IF="$(ls /sys/class/net | grep -Ev '^(lo|virbr|vnet|docker|br-|cni|flannel|tun|tap)' | head -n1 || true)"
@@ -53,69 +53,7 @@ if ! ip link show "$BRIDGE_NAME" >/dev/null 2>&1; then
   fi
   log "Detected uplink interface: $UPLINK_IF"
 
-  # Current IPv4 (CIDR) and gateway for that interface
-  CUR_ADDR="$(ip -4 -o addr show dev "$UPLINK_IF" scope global 2>/dev/null | awk '{print $4}' | head -n1 || true)"
-  CUR_GW="$(ip route show default dev "$UPLINK_IF" 2>/dev/null | awk '{print $3; exit}' || true)"
-
-  # DNS: prefer systemd-resolved per-interface; fallback to /etc/resolv.conf
-  DNS_LIST=""
-  if command -v resolvectl >/dev/null 2>&1; then
-    # Example output:
-    # Link 2 (ens34): 172.17.2.7
-    DNS_LIST="$(resolvectl dns "$UPLINK_IF" 2>/dev/null \
-      | sed -n 's/.*):[[:space:]]*//p' \
-      | tr ' ' '\n' \
-      | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' \
-      | xargs || true)"
-  fi
-  if [[ -z "${DNS_LIST:-}" ]]; then
-    DNS_LIST="$(awk '/^nameserver[[:space:]]+/{print $2}' /etc/resolv.conf 2>/dev/null \
-      | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' \
-      | xargs || true)"
-  fi
-
-  if [[ -n "${CUR_ADDR:-}" ]]; then
-    log "Preserving IPv4: $CUR_ADDR (gw: ${CUR_GW:-none}, dns: ${DNS_LIST:-none})"
-
-    # Build YAML safely with correct indentation
-    {
-      cat <<EOF
-network:
-  version: 2
-  renderer: networkd
-  ethernets:
-    ${UPLINK_IF}:
-      dhcp4: no
-      dhcp6: no
-  bridges:
-    ${BRIDGE_NAME}:
-      interfaces: [${UPLINK_IF}]
-      addresses: [${CUR_ADDR}]
-EOF
-
-      if [[ -n "${CUR_GW:-}" ]]; then
-        echo "      gateway4: ${CUR_GW}"
-      fi
-
-      if [[ -n "${DNS_LIST:-}" ]]; then
-        DNS_YAML="$(echo "$DNS_LIST" | sed 's/[[:space:]]\+/, /g')"
-        cat <<EOF
-      nameservers:
-        addresses: [${DNS_YAML}]
-EOF
-      fi
-
-      cat <<EOF
-      parameters:
-        stp: false
-        forward-delay: 0
-EOF
-    } > "$NETPLAN_FILE"
-
-  else
-    log "No static IPv4 detected on $UPLINK_IF. Falling back to DHCP on bridge (IP may change)."
-
-    cat > "$NETPLAN_FILE" <<EOF
+  cat > "$NETPLAN_FILE" <<EOF
 network:
   version: 2
   renderer: networkd
@@ -131,14 +69,13 @@ network:
         stp: false
         forward-delay: 0
 EOF
-  fi
 
   chmod 600 "$NETPLAN_FILE"
 
-  log "Applying netplan now (may temporarily drop SSH)"
+  log "Applying netplan now (may drop SSH)"
   netplan apply >> "$LOG_FILE" 2>&1 || { log "ERROR: netplan apply failed"; exit 1; }
 
-  log "Done. Current br0 IPv4:"
+  log "Bridge created. br0 IPv4:"
   ip -4 addr show "$BRIDGE_NAME" | awk '/inet /{print " - " $2}'
 else
   BR0_IP="$(ip -4 addr show "$BRIDGE_NAME" | awk '/inet /{print $2}' | head -n1 || true)"
