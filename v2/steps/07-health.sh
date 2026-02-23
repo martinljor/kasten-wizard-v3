@@ -69,7 +69,7 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
     log echo "Nodes Ready: $READY / $NODE_COUNT"
   fi
 
-  (( NOßT_READY == 0 )) && break
+  (( NOT_READY == 0 )) && break
   sleep "$SLEEP_SECONDS"
 done
 
