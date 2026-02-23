@@ -33,11 +33,33 @@ fi
 # --------------------------------------------------
 get_vm_ip() {
   local vm="$1"
-  for _ in {1..30}; do
-    ip=$(sudo virsh domifaddr "$vm" | awk '/ipv4/ {print $4}' | cut -d/ -f1)
-    [[ -n "$ip" ]] && { echo "$ip"; return 0; }
+  local mac ip
+
+  for i in {1..60}; do
+    # 1) si está paused, lo reanudo
+    if sudo virsh domstate "$vm" 2>/dev/null | grep -qi paused; then
+      run_bg sudo virsh resume "$vm" || true
+      sleep 2
+    fi
+
+    # 2) intento por domifaddr (cuando qemu-guest-agent reporta)
+    ip="$(sudo virsh domifaddr "$vm" 2>/dev/null | awk '/ipv4/ {print $4}' | cut -d/ -f1 | head -n1)"
+    if [[ -n "${ip:-}" ]]; then
+      echo "$ip"; return 0
+    fi
+
+    # 3) fallback: DHCP lease por MAC
+    mac="$(sudo virsh domiflist "$vm" 2>/dev/null | awk '/network/ {print $5; exit}')"
+    if [[ -n "${mac:-}" ]]; then
+      ip="$(sudo virsh net-dhcp-leases default 2>/dev/null | awk -v m="$mac" 'tolower($0) ~ tolower(m) {print $5}' | cut -d/ -f1 | head -n1)"
+      if [[ -n "${ip:-}" ]]; then
+        echo "$ip"; return 0
+      fi
+    fi
+
     sleep 5
   done
+
   return 1
 }
 
