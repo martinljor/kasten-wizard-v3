@@ -6,7 +6,7 @@ STEP_TITLE="INSTALLING LONGHORN"
 
 MAX_RETRIES=90
 SLEEP_SECONDS=5
-LOG_EVERY=2   # cada 10s
+LOG_EVERY=2
 
 progress() { draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" "$1"; }
 log() { echo "[INFO] $*" >> "$LOG_FILE"; }
@@ -21,90 +21,67 @@ run_bg helm repo add longhorn https://charts.longhorn.io || true
 run_bg helm repo update
 
 # --------------------------------------------------
-# Namespace (idempotent)
+# Namespace (safe + idempotent)
 # --------------------------------------------------
-run_bg kubectl create namespace longhorn-system --dry-run=client -o yaml | run_bg kubectl apply -f -
+if ! kubectl get namespace longhorn-system >/dev/null 2>&1; then
+  run_bg kubectl create namespace longhorn-system
+fi
 
 # --------------------------------------------------
-# Install/Upgrade Longhorn
+# Install Longhorn
 # --------------------------------------------------
 run_bg helm upgrade --install longhorn longhorn/longhorn \
-  --namespace longhorn-system \
-  --wait --timeout 15m
+  --namespace longhorn-system
 
 progress 40
 log "Waiting for Longhorn pods to be Ready"
 
 # --------------------------------------------------
-# Wait: pods Ready (kubectl wait) + fallback loop
+# Wait pods Ready (robust check)
 # --------------------------------------------------
-# Primero: intenta con kubectl wait (lo más confiable)
-if ! kubectl -n longhorn-system wait --for=condition=Ready pod --all --timeout=10m >/dev/null 2>&1; then
-  log "kubectl wait did not complete, switching to fallback loop"
-
-  for ((i=1; i<=MAX_RETRIES; i++)); do
-    # Cuenta pods que NO están Ready (READY column like 1/1, 0/1, 2/2 etc)
-    NOT_READY=$(
-      kubectl get pods -n longhorn-system --no-headers 2>/dev/null \
-      | awk '{print $2}' \
-      | awk -F/ '$1!=$2 {c++} END{print c+0}' || true
-    )
-
-    if (( i % LOG_EVERY == 0 )); then
-      TOTAL_PODS=$(kubectl get pods -n longhorn-system --no-headers 2>/dev/null | wc -l | xargs || echo 0)
-      READY_PODS=$(( TOTAL_PODS - NOT_READY ))
-      log "Longhorn pods Ready: ${READY_PODS}/${TOTAL_PODS}"
-    fi
-
-    if [[ "$NOT_READY" -eq 0 ]]; then
-      break
-    fi
-    sleep "$SLEEP_SECONDS"
-  done
-fi
-
-progress 65
-log "Waiting for StorageClass 'longhorn' to exist"
-
-# --------------------------------------------------
-# Wait for StorageClass to appear
-# --------------------------------------------------
-SC_FOUND=0
 for ((i=1; i<=MAX_RETRIES; i++)); do
-  if kubectl get storageclass longhorn >/dev/null 2>&1; then
-    SC_FOUND=1
+  TOTAL=$(kubectl get pods -n longhorn-system --no-headers 2>/dev/null | wc -l | xargs || echo 0)
+  NOT_READY=$(kubectl get pods -n longhorn-system --no-headers 2>/dev/null \
+    | awk '{print $2}' | awk -F/ '$1!=$2 {c++} END{print c+0}' || true)
+
+  READY=$((TOTAL - NOT_READY))
+
+  if (( i % LOG_EVERY == 0 )); then
+    log "Longhorn pods Ready: $READY/$TOTAL"
+  fi
+
+  if [[ "$TOTAL" -gt 0 && "$NOT_READY" -eq 0 ]]; then
     break
   fi
-  if (( i % LOG_EVERY == 0 )); then
-    log "StorageClass 'longhorn' not found yet..."
+
+  sleep "$SLEEP_SECONDS"
+done
+
+progress 70
+log "Waiting for StorageClass 'longhorn'"
+
+for ((i=1; i<=MAX_RETRIES; i++)); do
+  if kubectl get storageclass longhorn >/dev/null 2>&1; then
+    break
   fi
   sleep "$SLEEP_SECONDS"
 done
 
-if [[ "$SC_FOUND" -ne 1 ]]; then
-  log "ERROR: StorageClass 'longhorn' still not found after waiting"
-  run_bg kubectl get storageclass || true
+if ! kubectl get storageclass longhorn >/dev/null 2>&1; then
+  log "ERROR: StorageClass longhorn not found"
   exit 1
 fi
 
-progress 75
-log "Configuring StorageClass defaults (local-path -> false, longhorn -> true)"
+progress 80
+log "Configuring StorageClass defaults"
 
-# --------------------------------------------------
-# Remove local-path as default (ignore if missing)
-# --------------------------------------------------
 run_bg kubectl patch storageclass local-path \
-  -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' \
-  >/dev/null 2>&1 || true
+  -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' || true
 
-# --------------------------------------------------
-# Set longhorn as default
-# --------------------------------------------------
 run_bg kubectl patch storageclass longhorn \
   -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 
-progress 90
-log "Validating StorageClasses"
+progress 95
 run_bg kubectl get storageclass
 
 progress 100
