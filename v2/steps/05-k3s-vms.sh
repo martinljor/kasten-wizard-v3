@@ -10,9 +10,9 @@ log() { echo "[INFO] $*" >> "$LOG_FILE"; }
 # --------------------------------------------------
 # VM sizing
 # --------------------------------------------------
-DISK_SIZE="40G"
-MASTER_VCPUS=2
-MASTER_MEM=4096     # MB
+DISK_SIZE="60G"
+MASTER_VCPUS=4
+MASTER_MEM=8192     # MB
 WORKER_VCPUS=4
 WORKER_MEM=8192     # MB
 
