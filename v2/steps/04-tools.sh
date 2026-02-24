@@ -10,7 +10,7 @@ log() { echo "[INFO] $*" >> "$LOG_FILE"; }
 progress 10
 
 # -------------------------------------------------
-# Base packages
+# Base 
 # -------------------------------------------------
 run_bg apt-get update -y
 run_bg apt-get install -y \
