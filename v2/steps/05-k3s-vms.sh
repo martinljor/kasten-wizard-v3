@@ -4,91 +4,156 @@ set -e
 STEP_NUM=5
 STEP_TITLE="CREATING K3S VMs"
 
-progress() {
-  draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" "$1"
-}
+progress() { draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" "$1"; }
+log() { echo "[INFO] $*" >> "$LOG_FILE"; }
 
-log() {
-  echo "[INFO] $*" >> "$LOG_FILE"
-}
+# --------------------------------------------------
+# VM sizing
+# --------------------------------------------------
+DISK_SIZE="40G"
+MASTER_VCPUS=2
+MASTER_MEM=4096     # MB
+WORKER_VCPUS=4
+WORKER_MEM=8192     # MB
 
-VM_DIR="/var/lib/libvirt/images"
-BASE_IMAGE="$VM_DIR/ubuntu-22.04-server-cloudimg-amd64.img"
+IMG_DIR="/var/lib/libvirt/images"
+CI_DIR="/var/lib/libvirt/cloudinit"
 
-progress 10
-log "Ensuring base cloud image exists"
+# --------------------------------------------------
+# Detect real user + SSH key (IMPORTANT when running with sudo)
+# --------------------------------------------------
+REAL_USER="${SUDO_USER:-$(whoami)}"
+REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
+SSH_DIR="$REAL_HOME/.ssh"
 
-if [[ ! -f "$BASE_IMAGE" ]]; then
-  run_bg wget -O "$BASE_IMAGE" \
-    https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img
+# Pick an existing key, or create one (rsa) for the REAL user
+if [[ -f "$SSH_DIR/id_ed25519.pub" ]]; then
+  SSH_PUB="$SSH_DIR/id_ed25519.pub"
+elif [[ -f "$SSH_DIR/id_rsa.pub" ]]; then
+  SSH_PUB="$SSH_DIR/id_rsa.pub"
+else
+  log "SSH key not found for $REAL_USER, generating RSA key"
+  run_bg sudo -u "$REAL_USER" mkdir -p "$SSH_DIR"
+  run_bg sudo -u "$REAL_USER" ssh-keygen -t rsa -b 4096 -f "$SSH_DIR/id_rsa" -N ""
+  SSH_PUB="$SSH_DIR/id_rsa.pub"
 fi
 
-create_vm() {
-  local NAME="$1"
-  local VCPU="$2"
-  local RAM_MB="$3"
+SSH_KEY="$(cat "$SSH_PUB")"
 
-  local DISK_IMG="$VM_DIR/${NAME}.qcow2"
-  local SEED_IMG="$VM_DIR/${NAME}-seed.img"
+progress 10
+run_bg sudo mkdir -p "$IMG_DIR" "$CI_DIR"
 
-  log "Creating disk for $NAME"
-  run_bg qemu-img create -f qcow2 -F qcow2 -b "$BASE_IMAGE" "$DISK_IMG" 40G
+# --------------------------------------------------
+# Base cloud image (Ubuntu 22.04)
+# --------------------------------------------------
+ARCH="$(uname -m)"
+if [[ "$ARCH" == "aarch64" ]]; then
+  UBUNTU_IMG_URL="https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-arm64.img"
+  BASE_IMG="$IMG_DIR/ubuntu-22.04-arm64.img"
+else
+  UBUNTU_IMG_URL="https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+  BASE_IMG="$IMG_DIR/ubuntu-22.04-amd64.img"
+fi
 
-  log "Creating cloud-init seed for $NAME"
-  cat > /tmp/user-data <<EOF
+progress 20
+if [[ ! -f "$BASE_IMG" ]]; then
+  log "Downloading Ubuntu cloud image"
+  run_bg sudo wget -O "$BASE_IMG" "$UBUNTU_IMG_URL"
+fi
+
+# --------------------------------------------------
+# Cleanup existing VMs
+# --------------------------------------------------
+cleanup_vm() {
+  local vm="$1"
+  if sudo virsh dominfo "$vm" >/dev/null 2>&1; then
+    log "Removing existing VM $vm"
+    run_bg sudo virsh destroy "$vm" >/dev/null 2>&1 || true
+    run_bg sudo virsh undefine "$vm" --remove-all-storage --nvram >/dev/null 2>&1 || true
+  fi
+}
+
+progress 30
+cleanup_vm k3s-master
+cleanup_vm k3s-worker1
+cleanup_vm k3s-worker2
+
+# --------------------------------------------------
+# Cloud-init generator
+# --------------------------------------------------
+create_cloudinit() {
+  local name="$1"
+
+  cat > "$CI_DIR/$name-user-data.yaml" <<EOF
 #cloud-config
-hostname: $NAME
+hostname: $name
+preserve_hostname: false
+manage_etc_hosts: true
 users:
   - name: ubuntu
     sudo: ALL=(ALL) NOPASSWD:ALL
     groups: sudo
     shell: /bin/bash
     ssh_authorized_keys:
-      - $(cat "$HOME/.ssh/id_rsa.pub")
-package_update: true
-package_upgrade: true
+      - $SSH_KEY
+packages:
+  - qemu-guest-agent
+runcmd:
+  - systemctl enable --now qemu-guest-agent
 EOF
 
-  cloud-localds "$SEED_IMG" /tmp/user-data
+  echo "instance-id: $name" > "$CI_DIR/$name-meta-data.yaml"
+  echo "local-hostname: $name" >> "$CI_DIR/$name-meta-data.yaml"
 
-  log "Creating VM $NAME"
-  run_bg virt-install \
-    --name "$NAME" \
-    --memory "$RAM_MB" \
-    --vcpus "$VCPU" \
-    --disk path="$DISK_IMG",format=qcow2 \
-    --disk path="$SEED_IMG",device=cdrom \
+  run_bg sudo cloud-localds \
+    "$CI_DIR/$name-seed.iso" \
+    "$CI_DIR/$name-user-data.yaml" \
+    "$CI_DIR/$name-meta-data.yaml"
+}
+
+progress 45
+log "Preparing cloud-init"
+create_cloudinit k3s-master
+create_cloudinit k3s-worker1
+create_cloudinit k3s-worker2
+
+# --------------------------------------------------
+# VM creator (NAT: network=default)
+# --------------------------------------------------
+create_vm() {
+  local name="$1"
+  local mem="$2"
+  local vcpus="$3"
+
+  log "Creating VM $name"
+
+  run_bg sudo rm -f "$IMG_DIR/$name.qcow2"
+  run_bg sudo qemu-img create -f qcow2 -F qcow2 -b "$BASE_IMG" \
+    "$IMG_DIR/$name.qcow2"
+  run_bg sudo qemu-img resize "$IMG_DIR/$name.qcow2" "$DISK_SIZE"
+
+  run_bg sudo virt-install \
+    --name "$name" \
+    --memory "$mem" \
+    --vcpus "$vcpus" \
+    --disk path="$IMG_DIR/$name.qcow2",format=qcow2 \
+    --disk path="$CI_DIR/$name-seed.iso",device=cdrom \
     --os-variant ubuntu22.04 \
-    --import \
     --network network=default,model=virtio \
     --graphics none \
+    --import \
     --noautoconsole
 }
 
-progress 30
+progress 60
+create_vm k3s-master  "$MASTER_MEM" "$MASTER_VCPUS"
+create_vm k3s-worker1 "$WORKER_MEM" "$WORKER_VCPUS"
+create_vm k3s-worker2 "$WORKER_MEM" "$WORKER_VCPUS"
 
-# Destroy if already exists
-for VM in k3s-master k3s-worker1 k3s-worker2; do
-  if sudo virsh dominfo "$VM" >/dev/null 2>&1; then
-    log "Removing existing VM $VM"
-    run_bg virsh destroy "$VM" || true
-    run_bg virsh undefine "$VM" --remove-all-storage || true
-  fi
-done
-
-progress 40
-
-# Create VMs
-create_vm "k3s-master" 2 4096
-create_vm "k3s-worker1" 4 8192
-create_vm "k3s-worker2" 4 8192
-
-progress 80
-
-log "Waiting for VMs to boot..."
-sleep 20
+progress 85
+log "Waiting for VMs to boot"
+sleep 30
 
 progress 100
 log "STEP 05 completed successfully"
-
 return 0
