@@ -178,29 +178,36 @@ progress 55
 log "Running Ansible playbook (k3s.yml)"
 run_bg ansible-playbook -i "$ANSIBLE_DIR/inventory.ini" "$ANSIBLE_DIR/k3s.yml"
 
-# --------------------------------------------------
-# Fetch kubeconfig to REAL user's home (not root)
-# --------------------------------------------------
-progress 80
 log "Fetching kubeconfig from k3s-master to host user ($REAL_USER)"
 
+# Master IP (ya la tenés calculada antes, pero por seguridad)
+MASTER_IP="$(sudo virsh domifaddr k3s-master | awk '/ipv4/ {print $4}' | cut -d/ -f1)"
+[[ -n "$MASTER_IP" ]] || { log "ERROR: master IP not found"; exit 1; }
+
+# Directorio kube del usuario real (NO root)
 KUBE_DIR="$REAL_HOME/.kube"
 run_bg sudo -u "$REAL_USER" mkdir -p "$KUBE_DIR"
 run_bg sudo -u "$REAL_USER" chmod 700 "$KUBE_DIR"
 
-# Copy as REAL_USER using the same SSH key
-run_bg sudo -u "$REAL_USER" scp \
-  -i "$SSH_KEY_PATH" \
+# 1) En el master: copiar el kubeconfig a /home/ubuntu/k3s.yaml y hacerlo legible
+run_bg ssh -i "$SSH_KEY" \
   -o StrictHostKeyChecking=no \
   -o UserKnownHostsFile=/dev/null \
-  ubuntu@"$MASTER_IP":/etc/rancher/k3s/k3s.yaml \
+  ubuntu@"$MASTER_IP" \
+  "sudo cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/k3s.yaml && sudo chown ubuntu:ubuntu /home/ubuntu/k3s.yaml && sudo chmod 600 /home/ubuntu/k3s.yaml"
+
+# 2) SCP desde ubuntu (ya con permisos)
+run_bg sudo -u "$REAL_USER" scp -i "$SSH_KEY" \
+  -o StrictHostKeyChecking=no \
+  -o UserKnownHostsFile=/dev/null \
+  ubuntu@"$MASTER_IP":/home/ubuntu/k3s.yaml \
   "$KUBE_DIR/config"
 
-# Fix server endpoint (127.0.0.1 -> MASTER_IP)
+# 3) Ajustar server IP dentro del kubeconfig (sale con 127.0.0.1)
 run_bg sudo -u "$REAL_USER" sed -i "s/127.0.0.1/$MASTER_IP/g" "$KUBE_DIR/config"
 run_bg sudo -u "$REAL_USER" chmod 600 "$KUBE_DIR/config"
 
-log "kubeconfig installed at $KUBE_DIR/config (server=$MASTER_IP)"
+log "kubeconfig installed at $KUBE_DIR/config"
 
 progress 100
 log "STEP 06 completed successfully"
