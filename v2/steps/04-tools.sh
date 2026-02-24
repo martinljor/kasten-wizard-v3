@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -e
 
 STEP_ID=4
 STEP_NAME="TOOLS INSTALLATION"
 
-progress() { draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" "$1"; }
-log() { echo "[INFO] $*" >> "$LOG_FILE"; }
-
-progress 10
+draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" 10
 
 # -------------------------------------------------
-# Base 
+# Base packages
 # -------------------------------------------------
 run_bg apt-get update -y
+
 run_bg apt-get install -y \
   curl \
   gpg \
@@ -27,68 +25,26 @@ run_bg apt-get install -y \
   bridge-utils \
   ansible
 
-# Enable libvirt now (needed later)
+draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" 30
+
+# -------------------------------------------------
+# Enable & start libvirt
+# -------------------------------------------------
 run_bg systemctl enable --now libvirtd
 
-progress 30
+draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" 40
+
 # -------------------------------------------------
-# Create bridge br0 for KVM (NO rollback, NO wait)
-# - uplink becomes bridge port (no IP on NIC)
-# - br0 gets DHCP (may take a few seconds)
-# - fix netplan file permissions warnings
+# Ensure default NAT network exists
 # -------------------------------------------------
-BRIDGE_NAME="br0"
-NETPLAN_FILE="/etc/netplan/01-k10-br0.yaml"
-
-if ! ip link show "$BRIDGE_NAME" >/dev/null 2>&1; then
-  log "Bridge $BRIDGE_NAME not found. Creating it with netplan (br0 DHCP, no rollback)..."
-
-  UPLINK_IF="$(ip route show default 2>/dev/null | awk '{print $5; exit}' || true)"
-  if [[ -z "${UPLINK_IF:-}" ]]; then
-    UPLINK_IF="$(ls /sys/class/net | grep -Ev '^(lo|virbr|vnet|docker|br-|cni|flannel|tun|tap)' | head -n1 || true)"
-  fi
-  if [[ -z "${UPLINK_IF:-}" ]]; then
-    log "ERROR: Unable to detect uplink interface for bridge creation."
-    exit 1
-  fi
-  log "Detected uplink interface: $UPLINK_IF"
-
-  cat > "$NETPLAN_FILE" <<EOF
-network:
-  version: 2
-  renderer: networkd
-  ethernets:
-    ${UPLINK_IF}:
-      dhcp4: no
-      dhcp6: no
-  bridges:
-    ${BRIDGE_NAME}:
-      interfaces: [${UPLINK_IF}]
-      dhcp4: yes
-      parameters:
-        stp: false
-        forward-delay: 0
-EOF
-
-  # Fix permissions warnings (including other netplan yamls)
-  chown root:root /etc/netplan/*.yaml 2>/dev/null || true
-  chmod 600 /etc/netplan/*.yaml 2>/dev/null || true
-
-  log "Applying netplan now (may drop SSH)"
-  netplan apply >> "$LOG_FILE" 2>&1 || { log "ERROR: netplan apply failed"; exit 1; }
-
-  log "Bridge created. br0 IPv4 (DHCP may take a few seconds):"
-  BR0_IP="$(ip -4 -o addr show dev "$BRIDGE_NAME" | awk '{print $4}' | head -n1 || true)"
-  if [[ -n "${BR0_IP:-}" ]]; then
-    log " - ${BR0_IP}"
-  else
-    log " - (not yet assigned)"
-  fi
-else
-  BR0_IP="$(ip -4 -o addr show dev "$BRIDGE_NAME" | awk '{print $4}' | head -n1 || true)"
-  log "Bridge $BRIDGE_NAME already exists (IP: ${BR0_IP:-none})"
+if ! sudo virsh net-info default >/dev/null 2>&1; then
+  run_bg virsh net-define /usr/share/libvirt/networks/default.xml
 fi
-progress 45
+
+run_bg virsh net-autostart default
+run_bg virsh net-start default || true
+
+draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" 50
 
 # -------------------------------------------------
 # Helm installation
@@ -112,10 +68,10 @@ if ! command -v helm >/dev/null 2>&1; then
   run_bg apt-get install -y helm
 fi
 
-progress 60
+draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" 70
 
 # -------------------------------------------------
-# kubectl installation (official Kubernetes repo)
+# kubectl installation
 # -------------------------------------------------
 if ! command -v kubectl >/dev/null 2>&1; then
   run_bg mkdir -p /etc/apt/keyrings
@@ -135,25 +91,14 @@ if ! command -v kubectl >/dev/null 2>&1; then
   run_bg apt-get install -y kubectl
 fi
 
-progress 80
-
-# -------------------------------------------------
-# k3d installation (optional; keeping as you had it)
-# -------------------------------------------------
-if ! command -v k3d >/dev/null 2>&1; then
-  log "Installing k3d..."
-  run_bg bash -c 'curl -fsSL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash'
-fi
-
-progress 90
+draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" 85
 
 # -------------------------------------------------
 # Verification
 # -------------------------------------------------
 run_bg helm version
 run_bg kubectl version --client
-run_bg k3d version
-run_bg ip -br addr show "$BRIDGE_NAME" || true
 
-progress 100
+draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" 100
+
 return 0
