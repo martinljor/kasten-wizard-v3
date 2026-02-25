@@ -63,7 +63,7 @@ if ! command -v helm >/dev/null 2>&1; then
     > /etc/apt/sources.list.d/helm-stable-debian.list
   '
 
-  #run_bg apt-get update -y
+  run_bg apt-get update -y
   run_bg apt-get install -y helm
 fi
 
