@@ -231,6 +231,20 @@ run_bg rm -f /tmp/k10-ingress.yaml || true
 progress 92
 log "Exposing K10 (Ingress LB $INGRESS_LB_IP) to LAN via host firewall"
 
+get_lan_if() {
+  # 1) Default route
+  local ifc
+  ifc="$(ip route show default 2>/dev/null | awk '{print $5; exit}')"
+  [[ -n "$ifc" ]] && { echo "$ifc"; return 0; }
+
+}
+
+get_if_ipv4() {
+  local ifname="$1"
+  ip -o -4 addr show dev "$ifname" scope global 2>/dev/null \
+    | awk '{print $4}' | head -n1 | cut -d/ -f1
+}
+
 LAN_IF="$(get_lan_if)"
 VIR_IF="virbr0"
 HOST_LAN_IP=""
