@@ -136,6 +136,7 @@ create_vm() {
     --name "$name" \
     --memory "$mem" \
     --vcpus "$vcpus" \
+    --cpu host-model \
     --disk path="$IMG_DIR/$name.qcow2",format=qcow2 \
     --disk path="$CI_DIR/$name-seed.iso",device=cdrom \
     --os-variant ubuntu22.04 \
