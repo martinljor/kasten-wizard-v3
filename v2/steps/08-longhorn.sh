@@ -31,7 +31,12 @@ fi
 # Install Longhorn
 # --------------------------------------------------
 run_bg helm upgrade --install longhorn longhorn/longhorn \
-  --namespace longhorn-system
+  --namespace longhorn-system \
+  --set defaultSettings.defaultReplicaCount=2 \
+  --set defaultSettings.defaultDataLocality=best-effort \
+  --set defaultSettings.replicaReplenishmentWaitInterval=30 \
+  --set defaultSettings.concurrentReplicaRebuildPerNodeLimit=1
+  
 
 progress 40
 log "Waiting for Longhorn pods to be Ready"
