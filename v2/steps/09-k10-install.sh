@@ -226,14 +226,75 @@ kube_u kubectl apply -f /tmp/k10-ingress.yaml
 run_bg rm -f /tmp/k10-ingress.yaml || true
 
 # --------------------------------------------------
+# Expose Ingress LB (192.168.122.x) to LAN via host DNAT
+# --------------------------------------------------
+progress 92
+log "Exposing K10 (Ingress LB $INGRESS_LB_IP) to LAN via host firewall"
+
+LAN_IF="$(get_lan_if)"
+VIR_IF="virbr0"
+HOST_LAN_IP=""
+if [[ -n "${LAN_IF}" ]]; then
+  HOST_LAN_IP="$(get_if_ipv4 "$LAN_IF" || true)"
+fi
+
+if [[ -z "${LAN_IF}" || -z "${HOST_LAN_IP}" ]]; then
+  log "WARN: Could not detect LAN interface/IP, skipping DNAT exposure"
+elif ! ip link show "$VIR_IF" >/dev/null 2>&1; then
+  log "WARN: $VIR_IF not found, skipping DNAT exposure"
+else
+  enable_ip_forward
+
+  # DNAT: LAN -> LB IP on virbr0
+  run_bg sudo bash -c "
+    iptables -t nat -C PREROUTING -i '$LAN_IF' -p tcp --dport 80  -j DNAT --to-destination '${INGRESS_LB_IP}:80'  2>/dev/null || \
+    iptables -t nat -A PREROUTING -i '$LAN_IF' -p tcp --dport 80  -j DNAT --to-destination '${INGRESS_LB_IP}:80'
+    iptables -t nat -C PREROUTING -i '$LAN_IF' -p tcp --dport 443 -j DNAT --to-destination '${INGRESS_LB_IP}:443' 2>/dev/null || \
+    iptables -t nat -A PREROUTING -i '$LAN_IF' -p tcp --dport 443 -j DNAT --to-destination '${INGRESS_LB_IP}:443'
+
+    iptables -t nat -C POSTROUTING -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 80  -j MASQUERADE 2>/dev/null || \
+    iptables -t nat -A POSTROUTING -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 80  -j MASQUERADE
+    iptables -t nat -C POSTROUTING -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 443 -j MASQUERADE 2>/dev/null || \
+    iptables -t nat -A POSTROUTING -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 443 -j MASQUERADE
+  " || true
+
+  # FORWARD rules (clave si UFW está activo)
+  run_bg sudo bash -c "
+    iptables -C FORWARD -i '$LAN_IF' -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 80  -j ACCEPT 2>/dev/null || \
+    iptables -I FORWARD 1 -i '$LAN_IF' -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 80  -j ACCEPT
+    iptables -C FORWARD -i '$LAN_IF' -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 443 -j ACCEPT 2>/dev/null || \
+    iptables -I FORWARD 1 -i '$LAN_IF' -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 443 -j ACCEPT
+    iptables -C FORWARD -i '$VIR_IF' -o '$LAN_IF' -m state --state ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || \
+    iptables -I FORWARD 1 -i '$VIR_IF' -o '$LAN_IF' -m state --state ESTABLISHED,RELATED -j ACCEPT
+  " || true
+
+  # Open ports if UFW active
+  if sudo ufw status 2>/dev/null | grep -q "Status: active"; then
+    run_bg sudo ufw allow 80/tcp || true
+    run_bg sudo ufw allow 443/tcp || true
+  fi
+
+  # Persist rules if netfilter-persistent exists
+  if command -v netfilter-persistent >/dev/null 2>&1; then
+    run_bg sudo netfilter-persistent save >/dev/null || true
+  fi
+
+  log "K10 exposed on LAN: http://${HOST_LAN_IP}/ (DNAT -> ${INGRESS_LB_IP})"
+fi
+
+
+# --------------------------------------------------
 # Save access info for summary
 # --------------------------------------------------
 ACCESS_FILE="/var/log/k10-mj/access-summary.log"
 run_bg touch "$ACCESS_FILE" || true
 
-echo "Kasten K10 Dashboard | http://${INGRESS_LB_IP}/ | User: N/A | Pass: N/A" >> "$ACCESS_FILE"
-
+echo "Kasten K10 Dashboard (internal) | http://${INGRESS_LB_IP}/ | User: N/A | Pass: N/A" >> "$ACCESS_FILE"
+if [[ -n "${HOST_LAN_IP:-}" ]]; then
+  echo "Kasten K10 Dashboard (LAN via host) | http://${HOST_LAN_IP}/ | User: N/A | Pass: N/A" >> "$ACCESS_FILE"
+fi
 progress 100
 log "STEP 09 completed successfully"
-log "K10 URL (IP): http://${INGRESS_LB_IP}/"
+log "K10 URL (IP): http://${INGRESS_LB_IP}/k10/#"
+log "K10 URL http://${HOST_LAN_IP}/k10/# "
 return 0
