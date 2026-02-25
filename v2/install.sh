@@ -200,7 +200,7 @@ CURRENT_TITLE="INSTALLING LONGHORN STORAGE"
 
 step_timer_start
 draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-source ./steps/08-longhorn.sh
+#source ./steps/08-longhorn.sh
 draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1

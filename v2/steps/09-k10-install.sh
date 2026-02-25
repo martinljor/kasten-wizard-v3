@@ -170,8 +170,8 @@ kube_u kubectl get ns kasten-io >/dev/null 2>&1 || kube_u kubectl create ns kast
 
 helm_u upgrade --install k10 kasten/k10 \
   --namespace kasten-io \
-  --set global.persistence.storageClass=longhorn \
-  --set prometheus.server.persistentVolume.storageClass=longhorn \
+#  --set global.persistence.storageClass=longhorn \
+#  --set prometheus.server.persistentVolume.storageClass=longhorn \
   --set service.type=ClusterIP
 
 progress 70
