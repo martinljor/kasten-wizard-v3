@@ -176,9 +176,17 @@ helm_u upgrade --install k10 kasten/k10 \
 
 progress 70
 log "Waiting for K10 pods to be Ready"
+
 for ((i=1; i<=MAX_RETRIES; i++)); do
-  NOT_READY=$(sudo -u "$REAL_USER" -E env HOME="$REAL_HOME" KUBECONFIG="$KUBECONFIG_PATH" \
-    kubectl get pods -n kasten-io --no-headers 2>/dev/null | awk '$2 != $3' | wc -l | xargs || true)
+  NOT_READY=$(kubectl get pods -n kasten-io --no-headers 2>/dev/null \
+    | awk '
+      {
+        split($2,a,"/"); ready=a[1]; total=a[2];
+        status=$3;
+        if ((ready<total) || (status!="Running" && status!="Completed")) c++
+      }
+      END{print c+0}
+    ')
 
   [[ "$NOT_READY" == "0" ]] && break
 
