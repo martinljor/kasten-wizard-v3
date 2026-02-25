@@ -32,10 +32,8 @@ fi
 # --------------------------------------------------
 run_bg helm upgrade --install longhorn longhorn/longhorn \
   --namespace longhorn-system \
-  --set defaultSettings.defaultReplicaCount=2 \
-  --set defaultSettings.defaultDataLocality=best-effort \
-  --set defaultSettings.replicaReplenishmentWaitInterval=30 \
-  --set defaultSettings.concurrentReplicaRebuildPerNodeLimit=1
+  --set defaultSettings.defaultDataLocality=best-effort 
+
   
 
 progress 40
