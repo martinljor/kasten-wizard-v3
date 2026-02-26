@@ -56,6 +56,22 @@ if [[ -n "$FOUND_KUBECONFIG" ]]; then
   fi
 fi
 
+get_lan_if() {
+ 
+  local ifc
+  ifc="$(ip route show default 2>/dev/null | awk '{print $5; exit}')"
+  [[ -n "$ifc" ]] && { echo "$ifc"; return 0; }
+
+}
+
+get_if_ipv4() {
+  local ifname="$1"
+  ip -o -4 addr show dev "$ifname" scope global 2>/dev/null \
+    | awk '{print $4}' | head -n1 | cut -d/ -f1
+}
+
+LAN_IF="$(get_lan_if)"
+
 # Fallback: last URL in log if present
 if [[ "$K10_URL" == "N/A" && -f "$LOG_FILE" ]]; then
   # Examples you've logged:
@@ -67,8 +83,9 @@ if [[ "$K10_URL" == "N/A" && -f "$LOG_FILE" ]]; then
   fi
 fi
 
-print_green_line "Kasten K10 Dashboard: ${K10_URL}" "$ROW"; ((ROW+=2))
-
+print_green_line "Kasten K10 Dashboard: ${K10_URL}" "$ROW" "/k10/#"; ((ROW+=2))
+print_green_line "Kasten K10 Dashboard: http://${HOST_LAN_IP}/k10/# "
+print_green_line "____________________________________________________"
 # --------------------------------------------------
 # Logs
 # --------------------------------------------------

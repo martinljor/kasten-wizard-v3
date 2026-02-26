@@ -90,9 +90,10 @@ cleanup() {
   source ./steps/99-final-summary.sh || true
 
   echo
-  echo "Logs available at:"
-  echo "  $LOG_FILE"
-  echo "  $STEP_LOG_FILE"
+  echo " "
+   echo " "
+    echo " "
+     echo " "
 }
 trap cleanup EXIT
 
