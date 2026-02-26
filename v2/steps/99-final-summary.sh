@@ -84,8 +84,8 @@ if [[ "$K10_URL" == "N/A" && -f "$LOG_FILE" ]]; then
 fi
 
 print_green_line "Kasten K10 Dashboard: ${K10_URL}" "$ROW" "/k10/#"; ((ROW+=2))
-print_green_line "Kasten K10 Dashboard: http://${HOST_LAN_IP}/k10/# "
-print_green_line "____________________________________________________"
+print_green_line "Kasten K10 Dashboard: http://${HOST_LAN_IP}/k10/# "; ((ROW+=2))
+print_green_line "____________________________________________________"; ((ROW+=2))
 # --------------------------------------------------
 # Logs
 # --------------------------------------------------
