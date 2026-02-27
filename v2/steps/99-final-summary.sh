@@ -22,12 +22,32 @@ if [[ -f "$HOME/.kube/config" ]]; then
   [[ -n "${LB_IP:-}" ]] && K10_URL="http://${LB_IP}/"
 fi
 
+get_lan_if() {
+  local ifc
+  ifc="$(ip route show default 2>/dev/null | awk '{print $5; exit}')"
+  [[ -n "$ifc" ]] && { echo "$ifc"; return 0; }
+}
+
+get_if_ipv4() {
+  local ifname="$1"
+  ip -o -4 addr show dev "$ifname" scope global 2>/dev/null     | awk '{print $4}' | head -n1 | cut -d/ -f1
+}
+
+LAN_IF="$(get_lan_if)"
+HOST_LAN_IP=""
+if [[ -n "${LAN_IF:-}" ]]; then
+  HOST_LAN_IP="$(get_if_ipv4 "$LAN_IF" || true)"
+fi
+
 if [[ "$K10_URL" == "N/A" && -f "$LOG_FILE" ]]; then
   LAST_URL="$(grep -Eo 'K10 URL[^:]*: (https?://[^ ]+)' "$LOG_FILE" 2>/dev/null | tail -n 1 | sed -E 's/.*: (https?:\/\/[^ ]+).*/\1/' || true)"
   [[ -n "${LAST_URL:-}" ]] && K10_URL="$LAST_URL"
 fi
 
 print_green_line "Kasten K10 Dashboard: ${K10_URL}" "$ROW"; ((ROW+=2))
+if [[ -n "${HOST_LAN_IP:-}" ]]; then
+  print_green_line "Kasten K10 Dashboard (LAN): http://${HOST_LAN_IP}/k10/#" "$ROW"; ((ROW+=2))
+fi
 print_green_line "____________________________________________________" "$ROW"; ((ROW+=2))
 print_green_line "If you want to check logs available at:" "$ROW"; ((ROW++))
 print_green_line "$LOG_FILE" "$ROW"; ((ROW++))
