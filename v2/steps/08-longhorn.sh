@@ -28,13 +28,18 @@ if ! kubectl get namespace longhorn-system >/dev/null 2>&1; then
 fi
 
 # --------------------------------------------------
-# Install Longhorn
+# Install Longhorn (lab/demo low-resource profile)
 # --------------------------------------------------
 run_bg helm upgrade --install longhorn longhorn/longhorn \
   --namespace longhorn-system \
-  --set defaultSettings.defaultDataLocality=best-effort 
+  --set defaultSettings.defaultDataLocality=best-effort \
+  --set defaultSettings.defaultReplicaCount=1 \
+  --set defaultSettings.replicaSoftAntiAffinity=true \
+  --set defaultSettings.replicaZoneSoftAntiAffinity=true \
+  --set defaultSettings.replicaDiskSoftAntiAffinity=true \
+  --set defaultSettings.concurrentReplicaRebuildPerNodeLimit=1 \
+  --set defaultSettings.concurrentAutomaticEngineUpgradePerNodeLimit=1
 
-  
 
 progress 40
 log "Waiting for Longhorn pods to be Ready"
