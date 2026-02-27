@@ -2,120 +2,160 @@
 set -Eeuo pipefail
 
 STEP_NUM=9
-STEP_TITLE="INSTALLING MINIO (S3 REPOSITORY)"
+STEP_TITLE="INSTALLING MINIO (S3 REPOSITORY ON K3S MASTER)"
 
 progress() { draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" "$1"; }
 log() { echo "[INFO] $*" >> "$LOG_FILE"; }
 
+MINIO_NS="minio"
+MINIO_RELEASE="minio"
+MINIO_BUCKET="${MINIO_BUCKET:-kasten-backups}"
 MINIO_USER="${MINIO_ROOT_USER:-kasten}"
 MINIO_PASS="${MINIO_ROOT_PASSWORD:-}"
-MINIO_BUCKET="${MINIO_BUCKET:-kasten-backups}"
-MINIO_DATA_DIR="/var/lib/minio"
-MINIO_ENV_FILE="/etc/default/minio"
-MINIO_ENDPOINT="http://127.0.0.1:9000"
-
-get_lan_if() {
-  ip route show default 2>/dev/null | awk '{print $5; exit}'
-}
-
-get_if_ipv4() {
-  local ifname="$1"
-  ip -o -4 addr show dev "$ifname" scope global 2>/dev/null | awk '{print $4}' | head -n1 | cut -d/ -f1
-}
 
 if [[ -z "$MINIO_PASS" ]]; then
   MINIO_PASS="$(tr -dc 'A-Za-z0-9!@#%^*()_+=' </dev/urandom | head -c 22)"
 fi
 
 progress 10
-log "Installing MinIO binaries"
+log "Preparing MinIO namespace and secret"
 
-if ! command -v minio >/dev/null 2>&1; then
-  run_bg curl -fsSL -o /usr/local/bin/minio https://dl.min.io/server/minio/release/linux-amd64/minio
-  run_bg chmod +x /usr/local/bin/minio
-fi
+kubectl get ns "$MINIO_NS" >/dev/null 2>&1 || run_bg kubectl create ns "$MINIO_NS"
 
-if ! command -v mc >/dev/null 2>&1; then
-  run_bg curl -fsSL -o /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/mc
-  run_bg chmod +x /usr/local/bin/mc
-fi
+cat > /tmp/minio-secret.yaml <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-creds
+  namespace: ${MINIO_NS}
+type: Opaque
+stringData:
+  rootUser: ${MINIO_USER}
+  rootPassword: ${MINIO_PASS}
+EOF
+run_bg kubectl apply -f /tmp/minio-secret.yaml
+run_bg rm -f /tmp/minio-secret.yaml || true
 
 progress 25
-log "Configuring MinIO service"
+log "Deploying MinIO (pinned to k3s-master for demo)"
 
-run_bg id -u minio >/dev/null 2>&1 || run_bg useradd --system --home /var/lib/minio --shell /usr/sbin/nologin minio
-run_bg mkdir -p "$MINIO_DATA_DIR"
-run_bg chown -R minio:minio "$MINIO_DATA_DIR"
-
-cat > "$MINIO_ENV_FILE" <<EOF
-MINIO_ROOT_USER=${MINIO_USER}
-MINIO_ROOT_PASSWORD=${MINIO_PASS}
-MINIO_VOLUMES=${MINIO_DATA_DIR}
-MINIO_OPTS=--address :9000 --console-address :9001
+cat > /tmp/minio-deploy.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: k3s-master
+      containers:
+        - name: minio
+          image: minio/minio:latest
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-creds
+                  key: rootUser
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-creds
+                  key: rootPassword
+          ports:
+            - containerPort: 9000
+              name: api
+            - containerPort: 9001
+              name: console
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: minio-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-pvc
+  namespace: minio
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: minio
+spec:
+  selector:
+    app: minio
+  ports:
+    - name: api
+      port: 9000
+      targetPort: 9000
+    - name: console
+      port: 9001
+      targetPort: 9001
 EOF
 
-cat > /etc/systemd/system/minio.service <<'EOF'
-[Unit]
-Description=MinIO
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-User=minio
-Group=minio
-EnvironmentFile=/etc/default/minio
-ExecStart=/usr/local/bin/minio server $MINIO_VOLUMES $MINIO_OPTS
-Restart=always
-LimitNOFILE=65536
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-run_bg systemctl daemon-reload
-run_bg systemctl enable --now minio
+run_bg kubectl apply -f /tmp/minio-deploy.yaml
+run_bg rm -f /tmp/minio-deploy.yaml || true
 
 progress 45
-log "Waiting for MinIO health endpoint"
+log "Waiting for MinIO deployment rollout"
+run_bg kubectl -n "$MINIO_NS" rollout status deploy/minio --timeout=10m
 
-for _ in {1..30}; do
-  if curl -fsS "${MINIO_ENDPOINT}/minio/health/live" >/dev/null 2>&1; then
-    break
-  fi
-  sleep 2
-done
-
-if ! curl -fsS "${MINIO_ENDPOINT}/minio/health/live" >/dev/null 2>&1; then
-  log "ERROR: MinIO is not healthy"
-  exit 1
-fi
-
-progress 65
+progress 60
 log "Creating S3 bucket for Kasten"
-run_bg mc alias set local "$MINIO_ENDPOINT" "$MINIO_USER" "$MINIO_PASS"
-run_bg mc mb --ignore-existing "local/${MINIO_BUCKET}"
 
-LAN_IF="$(get_lan_if || true)"
-HOST_LAN_IP=""
-if [[ -n "${LAN_IF}" ]]; then
-  HOST_LAN_IP="$(get_if_ipv4 "$LAN_IF" || true)"
+# Create bucket from ephemeral mc pod inside cluster
+kubectl -n "$MINIO_NS" run mc-setup --image=minio/mc:latest --restart=Never --rm -i --command -- \
+  sh -c "mc alias set local http://minio.${MINIO_NS}.svc.cluster.local:9000 '${MINIO_USER}' '${MINIO_PASS}' && mc mb --ignore-existing local/${MINIO_BUCKET}" \
+  >> "$LOG_FILE" 2>&1
+
+progress 75
+log "Collecting MinIO access endpoints"
+MINIO_CLUSTER_ENDPOINT="http://minio.${MINIO_NS}.svc.cluster.local:9000"
+MASTER_IP="$(kubectl get node k3s-master -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null || true)"
+MINIO_MASTER_HINT=""
+if [[ -n "${MASTER_IP:-}" ]]; then
+  MINIO_MASTER_HINT="http://${MASTER_IP}:9000"
 fi
 
-# Open firewall ports for LAN access when UFW is active
-if ufw status 2>/dev/null | grep -q "Status: active"; then
-  run_bg ufw allow 9000/tcp || true
-  run_bg ufw allow 9001/tcp || true
-fi
-
-progress 85
 ACCESS_FILE="/var/log/k10-mj/access-summary.log"
 run_bg touch "$ACCESS_FILE" || true
 
-echo "MinIO API | http://${HOST_LAN_IP:-127.0.0.1}:9000 | AccessKey: ${MINIO_USER} | SecretKey: ${MINIO_PASS}" >> "$ACCESS_FILE"
-echo "MinIO Console | http://${HOST_LAN_IP:-127.0.0.1}:9001 | AccessKey: ${MINIO_USER} | SecretKey: ${MINIO_PASS}" >> "$ACCESS_FILE"
+echo "MinIO S3 (cluster) | ${MINIO_CLUSTER_ENDPOINT} | AccessKey: ${MINIO_USER} | SecretKey: ${MINIO_PASS}" >> "$ACCESS_FILE"
+if [[ -n "${MINIO_MASTER_HINT}" ]]; then
+  echo "MinIO S3 (master hint) | ${MINIO_MASTER_HINT} | Bucket: ${MINIO_BUCKET}" >> "$ACCESS_FILE"
+fi
 echo "MinIO Bucket | ${MINIO_BUCKET}" >> "$ACCESS_FILE"
 
-log "MinIO S3 ready at http://${HOST_LAN_IP:-127.0.0.1}:9000 (bucket: ${MINIO_BUCKET})"
+auto_msg="MinIO ready in namespace '${MINIO_NS}' (bucket: ${MINIO_BUCKET})"
+log "$auto_msg"
 
 progress 100
 return 0

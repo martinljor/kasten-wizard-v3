@@ -53,7 +53,7 @@ fi
 
 ACCESS_FILE="/var/log/k10-mj/access-summary.log"
 if [[ -f "$ACCESS_FILE" ]]; then
-  MINIO_API_LINE="$(grep -m1 '^MinIO API' "$ACCESS_FILE" 2>/dev/null || true)"
+  MINIO_API_LINE="$(grep -m1 '^MinIO S3' "$ACCESS_FILE" 2>/dev/null || true)"
   if [[ -n "${MINIO_API_LINE:-}" ]]; then
     print_green_line "$MINIO_API_LINE" "$ROW"; ((ROW+=2))
   fi
