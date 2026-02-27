@@ -12,9 +12,9 @@ log() { echo "[INFO] $*" >> "$LOG_FILE"; }
 # --------------------------------------------------
 DISK_SIZE="60G"
 MASTER_VCPUS=4
-MASTER_MEM=8192     # MB
-WORKER_VCPUS=4
-WORKER_MEM=8192     # MB
+MASTER_MEM=6144     # MB (lab profile for 24GB host)
+WORKER_VCPUS=2
+WORKER_MEM=4096     # MB (lab profile for 24GB host)
 
 IMG_DIR="/var/lib/libvirt/images"
 CI_DIR="/var/lib/libvirt/cloudinit"
