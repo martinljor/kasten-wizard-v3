@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-STEP_ID=4
+STEP_ID=3
 STEP_NAME="TOOLS INSTALLATION"
 
 draw_step "$STEP_ID" "$TOTAL_STEPS" "$STEP_NAME" 10

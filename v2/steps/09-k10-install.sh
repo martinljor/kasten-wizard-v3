@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-STEP_NUM=9
+STEP_NUM=8
 STEP_TITLE="INSTALLING KASTEN K10 (GATEWAY VIA INGRESS)"
 
 MAX_RETRIES=180

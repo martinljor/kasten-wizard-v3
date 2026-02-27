@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-STEP_NUM=7
+STEP_NUM=6
 STEP_TITLE="K3S CLUSTER HEALTH CHECK"
 
 EXPECTED_NODES=3

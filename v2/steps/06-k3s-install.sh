@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-STEP_NUM=6
+STEP_NUM=5
 STEP_TITLE="INSTALLING K3S CLUSTER (ANSIBLE)"
 
 progress() {

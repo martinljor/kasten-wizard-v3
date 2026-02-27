@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-STEP_NUM=8
+STEP_NUM=7
 STEP_TITLE="INSTALLING LONGHORN"
 
 MAX_RETRIES=90

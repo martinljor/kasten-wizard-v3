@@ -43,7 +43,7 @@ export START_TIME
 # --------------------------------------------------
 # Wizard state
 # --------------------------------------------------
-TOTAL_STEPS=9
+TOTAL_STEPS=8
 CURRENT_STEP=0
 CURRENT_TITLE=""
 
@@ -142,94 +142,93 @@ step_timer_end 0
 sleep 1
 
 # ==================================================
-# STEP 4 – Required Tools
+# STEP 3 – Required Tools
 # ==================================================
-CURRENT_STEP=4
+CURRENT_STEP=3
 CURRENT_TITLE="INSTALLING REQUIRED TOOLS"
 
 step_timer_start
-draw_step 4 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+draw_step 3 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
 source ./steps/04-tools.sh
+draw_step 3 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+step_timer_end 0
+sleep 1
+
+# ==================================================
+# STEP 4 – VMs for K3s
+# ==================================================
+CURRENT_STEP=4
+CURRENT_TITLE="CREATING VMS"
+
+step_timer_start
+draw_step 4 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+source ./steps/05-k3s-vms.sh
 draw_step 4 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
 
 # ==================================================
-# STEP 5 – VMs for K3s
+# STEP 5 – K3s Cluster
 # ==================================================
 CURRENT_STEP=5
-CURRENT_TITLE="CREATING VMS"
+CURRENT_TITLE="INSTALLING K3S CLUSTER"
 
 step_timer_start
 draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-source ./steps/05-k3s-vms.sh
+source ./steps/06-k3s-install.sh
 draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
 
 # ==================================================
-# STEP 6 – K3s Cluster
+# STEP 6 – K3s Health Check
 # ==================================================
 CURRENT_STEP=6
-CURRENT_TITLE="INSTALLING K3S CLUSTER"
+CURRENT_TITLE="K3S CLUSTER HEALTH CHECK"
 
 step_timer_start
 draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-source ./steps/06-k3s-install.sh
+source ./steps/07-health.sh
 draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
 
 # ==================================================
-# STEP 7 – K3s Health Check
+# STEP 7 – Longhorn Storage
 # ==================================================
 CURRENT_STEP=7
-CURRENT_TITLE="K3S CLUSTER HEALTH CHECK"
+CURRENT_TITLE="INSTALLING LONGHORN STORAGE"
 
 step_timer_start
 draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-source ./steps/07-health.sh
+if [[ "${INSTALL_LONGHORN:-true}" == "true" ]]; then
+  source ./steps/08-longhorn.sh
+else
+  echo "[INFO] STEP 7 skipped (INSTALL_LONGHORN=${INSTALL_LONGHORN:-true})" >> "$LOG_FILE"
+fi
 draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
 
 # ==================================================
-# STEP 8 – Longhorn Storage
+# STEP 8 – Kasten K10
 # ==================================================
 CURRENT_STEP=8
-CURRENT_TITLE="INSTALLING LONGHORN STORAGE"
-
-step_timer_start
-draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-if [[ "${INSTALL_LONGHORN:-true}" == "true" ]]; then
-  source ./steps/08-longhorn.sh
-else
-  echo "[INFO] STEP 8 skipped (INSTALL_LONGHORN=${INSTALL_LONGHORN:-true})" >> "$LOG_FILE"
-fi
-draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
-step_timer_end 0
-sleep 1
-
-# ==================================================
-# ==================================================
-# STEP 9 – Kasten K10
-# ==================================================
-CURRENT_STEP=9
 CURRENT_TITLE="INSTALLING KASTEN K10"
 
 STEP_CLOSED=0
 STEP_RC=0
 step_timer_start
-draw_step 9 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
 
 source ./steps/09-k10-install.sh || STEP_RC=$?
 
-draw_step 9 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end "$STEP_RC"
 STEP_CLOSED=1
 sleep 1
 
-# If step 9 failed, stop here (avoid summary masking / double-logging)
+# If step 8 failed, stop here (avoid summary masking / double-logging)
 if (( STEP_RC != 0 )); then
   exit "$STEP_RC"
 fi

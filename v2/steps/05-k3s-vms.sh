@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-STEP_NUM=5
+STEP_NUM=4
 STEP_TITLE="CREATING K3S VMs"
 
 progress() { draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" "$1"; }
