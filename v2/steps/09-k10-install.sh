@@ -177,7 +177,9 @@ helm_u upgrade --install k10 kasten/k10 \
 progress 70
 log "Waiting for K10 pods to be Ready"
 
+K10_READY=0
 for ((i=1; i<=MAX_RETRIES; i++)); do
+  TOTAL_PODS=$(kube_q kubectl get pods -n kasten-io --no-headers 2>/dev/null | wc -l | xargs || echo 0)
   NOT_READY=$(kube_q kubectl get pods -n kasten-io --no-headers 2>/dev/null \
     | awk '
       {
@@ -188,13 +190,22 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
       END{print c+0}
     ')
 
-  [[ "$NOT_READY" == "0" ]] && break
+  if [[ "$TOTAL_PODS" -gt 0 && "$NOT_READY" == "0" ]]; then
+    K10_READY=1
+    break
+  fi
 
   if (( i % LOG_EVERY == 0 )); then
-    log "K10 pods not ready yet (pending: $NOT_READY)"
+    log "K10 pods ready: $((TOTAL_PODS-NOT_READY))/$TOTAL_PODS (pending: $NOT_READY)"
   fi
   sleep "$SLEEP_SECONDS"
 done
+
+if [[ "$K10_READY" -ne 1 ]]; then
+  log "ERROR: Timeout waiting for K10 pods readiness"
+  kube_q kubectl get pods -n kasten-io >> "$LOG_FILE" 2>&1 || true
+  exit 1
+fi
 
 # --------------------------------------------------
 # Ingress for K10 gateway (NO host -> IP access)
