@@ -8,7 +8,7 @@ progress() { draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" "$1"; }
 log() { echo "[INFO] $*" >> "$LOG_FILE"; }
 
 MINIO_USER="${MINIO_ROOT_USER:-kasten}"
-MINIO_PASS="${MINIO_ROOT_PASSWORD:-KastenS3!2026}"
+MINIO_PASS="${MINIO_ROOT_PASSWORD:-}"
 MINIO_BUCKET="${MINIO_BUCKET:-kasten-backups}"
 MINIO_DATA_DIR="/var/lib/minio"
 MINIO_ENV_FILE="/etc/default/minio"
@@ -22,6 +22,10 @@ get_if_ipv4() {
   local ifname="$1"
   ip -o -4 addr show dev "$ifname" scope global 2>/dev/null | awk '{print $4}' | head -n1 | cut -d/ -f1
 }
+
+if [[ -z "$MINIO_PASS" ]]; then
+  MINIO_PASS="$(tr -dc 'A-Za-z0-9!@#%^*()_+=' </dev/urandom | head -c 22)"
+fi
 
 progress 10
 log "Installing MinIO binaries"
