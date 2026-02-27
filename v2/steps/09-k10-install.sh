@@ -41,6 +41,11 @@ kube_q() {
   sudo -u "$REAL_USER" -E env HOME="$REAL_HOME" KUBECONFIG="$KUBECONFIG_PATH" "$@"
 }
 
+enable_ip_forward() {
+  run_bg sysctl -w net.ipv4.ip_forward=1
+  run_bg bash -c "grep -q '^net.ipv4.ip_forward=1$' /etc/sysctl.conf || echo net.ipv4.ip_forward=1 >> /etc/sysctl.conf"
+}
+
 # --------------------------------------------------
 # Helpers
 # --------------------------------------------------
@@ -282,7 +287,7 @@ else
   enable_ip_forward
 
   # DNAT: LAN -> LB IP on virbr0
-  run_bg sudo bash -c "
+  run_bg bash -c "
     iptables -t nat -C PREROUTING -i '$LAN_IF' -p tcp --dport 80  -j DNAT --to-destination '${INGRESS_LB_IP}:80'  2>/dev/null || \
     iptables -t nat -A PREROUTING -i '$LAN_IF' -p tcp --dport 80  -j DNAT --to-destination '${INGRESS_LB_IP}:80'
     iptables -t nat -C PREROUTING -i '$LAN_IF' -p tcp --dport 443 -j DNAT --to-destination '${INGRESS_LB_IP}:443' 2>/dev/null || \
@@ -292,27 +297,33 @@ else
     iptables -t nat -A POSTROUTING -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 80  -j MASQUERADE
     iptables -t nat -C POSTROUTING -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 443 -j MASQUERADE 2>/dev/null || \
     iptables -t nat -A POSTROUTING -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 443 -j MASQUERADE
-  " || true
+  "
 
-  # FORWARD rules (clave si UFW está activo)
-  run_bg sudo bash -c "
+  # FORWARD rules
+  run_bg bash -c "
     iptables -C FORWARD -i '$LAN_IF' -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 80  -j ACCEPT 2>/dev/null || \
     iptables -I FORWARD 1 -i '$LAN_IF' -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 80  -j ACCEPT
     iptables -C FORWARD -i '$LAN_IF' -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 443 -j ACCEPT 2>/dev/null || \
     iptables -I FORWARD 1 -i '$LAN_IF' -o '$VIR_IF' -p tcp -d '${INGRESS_LB_IP}' --dport 443 -j ACCEPT
     iptables -C FORWARD -i '$VIR_IF' -o '$LAN_IF' -m state --state ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || \
     iptables -I FORWARD 1 -i '$VIR_IF' -o '$LAN_IF' -m state --state ESTABLISHED,RELATED -j ACCEPT
-  " || true
+  "
 
   # Open ports if UFW active
-  if sudo ufw status 2>/dev/null | grep -q "Status: active"; then
-    run_bg sudo ufw allow 80/tcp || true
-    run_bg sudo ufw allow 443/tcp || true
+  if ufw status 2>/dev/null | grep -q "Status: active"; then
+    run_bg ufw allow 80/tcp || true
+    run_bg ufw allow 443/tcp || true
   fi
 
   # Persist rules if netfilter-persistent exists
   if command -v netfilter-persistent >/dev/null 2>&1; then
-    run_bg sudo netfilter-persistent save >/dev/null || true
+    run_bg netfilter-persistent save >/dev/null || true
+  fi
+
+  # Validate DNAT rule exists; if not, fail loudly
+  if ! iptables -t nat -C PREROUTING -i "$LAN_IF" -p tcp --dport 80 -j DNAT --to-destination "${INGRESS_LB_IP}:80" >/dev/null 2>&1; then
+    log "ERROR: Failed to install DNAT rules for LAN exposure"
+    exit 1
   fi
 
   log "K10 exposed on LAN: http://${HOST_LAN_IP}/ (DNAT -> ${INGRESS_LB_IP})"
