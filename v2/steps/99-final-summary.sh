@@ -50,6 +50,15 @@ print_green_line "Kasten K10 Dashboard: ${K10_URL}" "$ROW"; ((ROW+=2))
 if [[ -n "${HOST_LAN_IP:-}" ]]; then
   print_green_line "Kasten K10 Dashboard (LAN): http://${HOST_LAN_IP}/k10/#" "$ROW"; ((ROW+=2))
 fi
+
+ACCESS_FILE="/var/log/k10-mj/access-summary.log"
+if [[ -f "$ACCESS_FILE" ]]; then
+  MINIO_API_LINE="$(grep -m1 '^MinIO API' "$ACCESS_FILE" 2>/dev/null || true)"
+  if [[ -n "${MINIO_API_LINE:-}" ]]; then
+    print_green_line "$MINIO_API_LINE" "$ROW"; ((ROW+=2))
+  fi
+fi
+
 print_green_line "____________________________________________________" "$ROW"; ((ROW+=2))
 print_green_line "If you want to check logs available at:" "$ROW"; ((ROW++))
 print_green_line "$LOG_FILE" "$ROW"; ((ROW++))
