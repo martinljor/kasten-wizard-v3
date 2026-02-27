@@ -4,8 +4,10 @@ set -Eeuo pipefail
 SUMMARY_STEP="$TOTAL_STEPS"
 SUMMARY_TITLE="INSTALLATION COMPLETED"
 
-draw_step "$SUMMARY_STEP" "$TOTAL_STEPS" "$SUMMARY_TITLE" 100
-ROW=4
+hide_cursor
+clear
+draw_green_panel
+ROW=$((PANEL_TOP + 2))
 
 print_green_line "KASTEN LAB INSTALLATION COMPLETED" "$ROW"; ((ROW+=2))
 
@@ -53,4 +55,5 @@ print_green_line "If you want to check logs available at:" "$ROW"; ((ROW++))
 print_green_line "$LOG_FILE" "$ROW"; ((ROW++))
 print_green_line "$STEP_LOG_FILE" "$ROW"
 
+show_cursor
 sleep 4
