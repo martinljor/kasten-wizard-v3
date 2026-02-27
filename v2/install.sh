@@ -148,9 +148,9 @@ CURRENT_STEP=4
 CURRENT_TITLE="INSTALLING REQUIRED TOOLS"
 
 step_timer_start
-draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+draw_step 4 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
 source ./steps/04-tools.sh
-draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+draw_step 4 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
 
@@ -161,9 +161,9 @@ CURRENT_STEP=5
 CURRENT_TITLE="CREATING VMS"
 
 step_timer_start
-draw_step 4 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
 source ./steps/05-k3s-vms.sh
-draw_step 4 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
 
@@ -174,9 +174,9 @@ CURRENT_STEP=6
 CURRENT_TITLE="INSTALLING K3S CLUSTER"
 
 step_timer_start
-draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
 source ./steps/06-k3s-install.sh
-draw_step 5 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
 
@@ -187,9 +187,9 @@ CURRENT_STEP=7
 CURRENT_TITLE="K3S CLUSTER HEALTH CHECK"
 
 step_timer_start
-draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
 source ./steps/07-health.sh
-draw_step 6 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
 
@@ -210,6 +210,7 @@ draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
 
+# ==================================================
 # ==================================================
 # STEP 9 – Kasten K10
 # ==================================================
