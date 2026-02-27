@@ -37,6 +37,10 @@ helm_u() {
     helm "$@"
 }
 
+kube_q() {
+  sudo -u "$REAL_USER" -E env HOME="$REAL_HOME" KUBECONFIG="$KUBECONFIG_PATH" "$@"
+}
+
 # --------------------------------------------------
 # Helpers
 # --------------------------------------------------
@@ -178,6 +182,8 @@ progress 70
 log "Waiting for K10 pods to be Ready"
 
 K10_READY=0
+READY_STABLE_HITS=0
+REQUIRED_STABLE_HITS=6   # ~30s with default sleep
 for ((i=1; i<=MAX_RETRIES; i++)); do
   TOTAL_PODS=$(kube_q kubectl get pods -n kasten-io --no-headers 2>/dev/null | wc -l | xargs || echo 0)
   NOT_READY=$(kube_q kubectl get pods -n kasten-io --no-headers 2>/dev/null \
@@ -191,12 +197,17 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
     ')
 
   if [[ "$TOTAL_PODS" -gt 0 && "$NOT_READY" == "0" ]]; then
-    K10_READY=1
-    break
+    READY_STABLE_HITS=$((READY_STABLE_HITS+1))
+    if (( READY_STABLE_HITS >= REQUIRED_STABLE_HITS )); then
+      K10_READY=1
+      break
+    fi
+  else
+    READY_STABLE_HITS=0
   fi
 
   if (( i % LOG_EVERY == 0 )); then
-    log "K10 pods ready: $((TOTAL_PODS-NOT_READY))/$TOTAL_PODS (pending: $NOT_READY)"
+    log "K10 pods ready: $((TOTAL_PODS-NOT_READY))/$TOTAL_PODS (pending: $NOT_READY, stable: $READY_STABLE_HITS/$REQUIRED_STABLE_HITS)"
   fi
   sleep "$SLEEP_SECONDS"
 done
