@@ -13,9 +13,10 @@ progress() {
   draw_step "$STEP_NUM" "$TOTAL_STEPS" "$STEP_TITLE" "$1"
 }
 
-# --------------------------------------------------
-# Detect real user kubeconfig
-# --------------------------------------------------
+log() {
+  echo "[INFO] $*" >> "$LOG_FILE"
+}
+
 REAL_USER="${SUDO_USER:-$(whoami)}"
 REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
 KUBECONFIG_PATH="$REAL_HOME/.kube/config"
@@ -23,55 +24,40 @@ KUBECONFIG_PATH="$REAL_HOME/.kube/config"
 progress 10
 
 if [[ ! -f "$KUBECONFIG_PATH" ]]; then
-  log echo "WARN: kubeconfig not found at $KUBECONFIG_PATH"
-  log echo "STEP 07 skipped (cluster not reachable from host)"
+  log "WARN: kubeconfig not found at $KUBECONFIG_PATH"
+  log "STEP 07 skipped (cluster not reachable from host)"
   progress 100
   exit 0
 fi
 
 export KUBECONFIG="$KUBECONFIG_PATH"
 
-# --------------------------------------------------
-# Wait for nodes to register
-# --------------------------------------------------
 progress 20
-log echo "Waiting for $EXPECTED_NODES nodes to register"
+log "Waiting for $EXPECTED_NODES nodes to register"
 
 NODE_COUNT=0
-
 for ((i=1; i<=MAX_RETRIES; i++)); do
   NODE_COUNT=$(kubectl get nodes --no-headers 2>/dev/null | wc -l || true)
-
   if (( i % LOG_EVERY == 0 )); then
-    log echo "Nodes detected: $NODE_COUNT / $EXPECTED_NODES"
+    log "Nodes detected: $NODE_COUNT / $EXPECTED_NODES"
   fi
-
   (( NODE_COUNT >= EXPECTED_NODES )) && break
   sleep "$SLEEP_SECONDS"
 done
 
-# --------------------------------------------------
-# Wait for Ready state
-# --------------------------------------------------
 progress 50
-log echo "Waiting for all nodes to reach Ready state"
+log "Waiting for all nodes to reach Ready state"
 
 NOT_READY=1
-
 for ((i=1; i<=MAX_RETRIES; i++)); do
-  NOT_READY=$(kubectl get nodes --no-headers 2>/dev/null \
-    | awk '$2 != "Ready"' \
-    | wc -l || true)
-
+  NOT_READY=$(kubectl get nodes --no-headers 2>/dev/null | awk '$2 != "Ready"' | wc -l || true)
   READY=$((NODE_COUNT - NOT_READY))
-
   if (( i % LOG_EVERY == 0 )); then
-    log echo "Nodes Ready: $READY / $NODE_COUNT"
+    log "Nodes Ready: $READY / $NODE_COUNT"
   fi
-
   (( NOT_READY == 0 )) && break
   sleep "$SLEEP_SECONDS"
 done
 
 progress 100
-log echo "STEP 07 completed (cluster reachable, readiness checked)"
+log "STEP 07 completed (cluster reachable, readiness checked)"

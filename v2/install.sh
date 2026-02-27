@@ -148,9 +148,9 @@ CURRENT_STEP=4
 CURRENT_TITLE="INSTALLING REQUIRED TOOLS"
 
 step_timer_start
-draw_step 3 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
 source ./steps/04-tools.sh
-draw_step 3 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
 
@@ -201,7 +201,11 @@ CURRENT_TITLE="INSTALLING LONGHORN STORAGE"
 
 step_timer_start
 draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-#source ./steps/08-longhorn.sh
+if [[ "${INSTALL_LONGHORN:-true}" == "true" ]]; then
+  source ./steps/08-longhorn.sh
+else
+  echo "[INFO] STEP 8 skipped (INSTALL_LONGHORN=${INSTALL_LONGHORN:-true})" >> "$LOG_FILE"
+fi
 draw_step 8 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end 0
 sleep 1
@@ -237,6 +241,6 @@ ELAPSED=$((END_TIME - START_TIME))
 echo "[INFO] Wizard execution time: ${ELAPSED}s" >> "$LOG_FILE"
 
 # Summary should never fail the wizard
-source ./steps/99-summary.sh || true
+source ./steps/99-final-summary.sh || true
 
 exit 0

@@ -178,7 +178,7 @@ progress 70
 log "Waiting for K10 pods to be Ready"
 
 for ((i=1; i<=MAX_RETRIES; i++)); do
-  NOT_READY=$(kubectl get pods -n kasten-io --no-headers 2>/dev/null \
+  NOT_READY=$(kube_q kubectl get pods -n kasten-io --no-headers 2>/dev/null \
     | awk '
       {
         split($2,a,"/"); ready=a[1]; total=a[2];
