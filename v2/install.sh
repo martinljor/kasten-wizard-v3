@@ -194,21 +194,17 @@ step_timer_end 0
 sleep 1
 
 # ==================================================
-# STEP 7 – Longhorn Storage
+# STEP 7 – Longhorn Storage (DISABLED FOR NOW)
 # ==================================================
-CURRENT_STEP=7
-CURRENT_TITLE="INSTALLING LONGHORN STORAGE"
-
-step_timer_start
-draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
-if [[ "${INSTALL_LONGHORN:-true}" == "true" ]]; then
-  source ./steps/08-longhorn.sh
-else
-  echo "[INFO] STEP 7 skipped (INSTALL_LONGHORN=${INSTALL_LONGHORN:-true})" >> "$LOG_FILE"
-fi
-draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
-step_timer_end 0
-sleep 1
+# CURRENT_STEP=7
+# CURRENT_TITLE="INSTALLING LONGHORN STORAGE"
+#
+# step_timer_start
+# draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+# source ./steps/08-longhorn.sh
+# draw_step 7 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+# step_timer_end 0
+# sleep 1
 
 # ==================================================
 # STEP 8 – Kasten K10
