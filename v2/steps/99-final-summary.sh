@@ -55,7 +55,12 @@ ACCESS_FILE="/var/log/k10-mj/access-summary.log"
 if [[ -f "$ACCESS_FILE" ]]; then
   MINIO_API_LINE="$(grep -m1 '^MinIO S3' "$ACCESS_FILE" 2>/dev/null || true)"
   if [[ -n "${MINIO_API_LINE:-}" ]]; then
-    print_green_line "$MINIO_API_LINE" "$ROW"; ((ROW+=2))
+    # Keep summary readable and avoid exposing full secret in panel
+    MINIO_SAFE_LINE="$(echo "$MINIO_API_LINE" | sed -E 's/(SecretKey:[[:space:]]*).*/\1***hidden***/')"
+    if (( ${#MINIO_SAFE_LINE} > 72 )); then
+      MINIO_SAFE_LINE="${MINIO_SAFE_LINE:0:72}..."
+    fi
+    print_green_line "$MINIO_SAFE_LINE" "$ROW"; ((ROW+=2))
   fi
 fi
 
