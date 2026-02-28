@@ -9,13 +9,14 @@ clear
 draw_green_panel
 ROW=$((PANEL_TOP + 2))
 
-print_green_line "KASTEN LAB INSTALLATION COMPLETED" "$ROW"; ((ROW+=2))
+print_green_line "KASTEN LAB INSTALLATION COMPLETED" "$ROW"; ((ROW+=1))
+print_green_line "------------------------------------------------------------" "$ROW"; ((ROW+=2))
 
 END_TIME=$(date +%s)
 TOTAL_TIME=$((END_TIME - START_TIME))
 TOTAL_MIN=$((TOTAL_TIME / 60))
 TOTAL_SEC=$((TOTAL_TIME % 60))
-print_green_line "Total execution time: ${TOTAL_MIN} min ${TOTAL_SEC} sec" "$ROW"; ((ROW+=2))
+print_green_line "Time: ${TOTAL_MIN} min ${TOTAL_SEC} sec" "$ROW"; ((ROW+=2))
 
 K10_URL="N/A"
 if [[ -f "$HOME/.kube/config" ]]; then
@@ -46,28 +47,31 @@ if [[ "$K10_URL" == "N/A" && -f "$LOG_FILE" ]]; then
   [[ -n "${LAST_URL:-}" ]] && K10_URL="$LAST_URL"
 fi
 
-print_green_line "Kasten K10 Dashboard: ${K10_URL}" "$ROW"; ((ROW+=2))
+print_green_line "K10 URLS:" "$ROW"; ((ROW+=1))
+print_green_line "- Internal: ${K10_URL}" "$ROW"; ((ROW+=1))
 if [[ -n "${HOST_LAN_IP:-}" ]]; then
-  print_green_line "Kasten K10 Dashboard (LAN): http://${HOST_LAN_IP}/k10/#" "$ROW"; ((ROW+=2))
+  print_green_line "- LAN:      http://${HOST_LAN_IP}/k10/#" "$ROW"; ((ROW+=1))
 fi
+((ROW+=1))
 
 ACCESS_FILE="/var/log/k10-mj/access-summary.log"
 if [[ -f "$ACCESS_FILE" ]]; then
-  MINIO_API_LINE="$(grep -m1 '^MinIO S3' "$ACCESS_FILE" 2>/dev/null || true)"
-  if [[ -n "${MINIO_API_LINE:-}" ]]; then
-    # Keep summary readable and avoid exposing full secret in panel
-    MINIO_SAFE_LINE="$(echo "$MINIO_API_LINE" | sed -E 's/(SecretKey:[[:space:]]*).*/\1***hidden***/')"
-    if (( ${#MINIO_SAFE_LINE} > 72 )); then
-      MINIO_SAFE_LINE="${MINIO_SAFE_LINE:0:72}..."
+  MINIO_EP="$(grep -m1 '^MinIO S3 (master OS)' "$ACCESS_FILE" | sed -E 's#.*\| (http://[^ ]+) \|.*#\1#' || true)"
+  MINIO_BUCKET="$(grep -m1 '^MinIO Bucket' "$ACCESS_FILE" | awk -F'\| ' '{print $2}' | xargs || true)"
+  if [[ -n "${MINIO_EP:-}" ]]; then
+    print_green_line "MINIO S3:" "$ROW"; ((ROW+=1))
+    print_green_line "- Endpoint: ${MINIO_EP}" "$ROW"; ((ROW+=1))
+    if [[ -n "${MINIO_BUCKET:-}" ]]; then
+      print_green_line "- Bucket:   ${MINIO_BUCKET}" "$ROW"; ((ROW+=1))
     fi
-    print_green_line "$MINIO_SAFE_LINE" "$ROW"; ((ROW+=2))
+    print_green_line "- AccessKey: kasten (secret hidden)" "$ROW"; ((ROW+=1))
   fi
 fi
 
-print_green_line "____________________________________________________" "$ROW"; ((ROW+=2))
-print_green_line "If you want to check logs available at:" "$ROW"; ((ROW++))
-print_green_line "$LOG_FILE" "$ROW"; ((ROW++))
-print_green_line "$STEP_LOG_FILE" "$ROW"
+((ROW+=1))
+print_green_line "LOGS:" "$ROW"; ((ROW+=1))
+print_green_line "- $LOG_FILE" "$ROW"; ((ROW+=1))
+print_green_line "- $STEP_LOG_FILE" "$ROW"
 
 show_cursor
 sleep 4
