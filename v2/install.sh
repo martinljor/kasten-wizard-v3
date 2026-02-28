@@ -105,16 +105,46 @@ cleanup() {
 trap cleanup EXIT
 
 # --------------------------------------------------
+# Error handler helpers
+# --------------------------------------------------
+write_fail_summary() {
+  local rc="$1"
+  local failed_cmd="$2"
+  local fail_file="$LOG_DIR/fail-summary.log"
+
+  {
+    echo "=== INSTALL FAILED ==="
+    echo "timestamp: $(date '+%F %T')"
+    echo "step: $CURRENT_STEP"
+    echo "title: $CURRENT_TITLE"
+    echo "exit_code: $rc"
+    echo "command: $failed_cmd"
+    echo "log_file: $LOG_FILE"
+    echo "step_log_file: $STEP_LOG_FILE"
+    echo ""
+    echo "--- last 50 lines: $LOG_FILE ---"
+    tail -n 50 "$LOG_FILE" 2>/dev/null || true
+    echo ""
+    echo "--- last 20 lines: $STEP_LOG_FILE ---"
+    tail -n 20 "$STEP_LOG_FILE" 2>/dev/null || true
+  } > "$fail_file"
+
+  echo "[ERROR] fail summary written to $fail_file" >> "$LOG_FILE"
+}
+
+# --------------------------------------------------
 # Error handler (keeps UI behavior)
 # --------------------------------------------------
 trap 'rc=$?;
+  failed_cmd=${BASH_COMMAND:-unknown};
+  write_fail_summary "$rc" "$failed_cmd";
   # If the current step was already closed/logged, do NOT re-log it as FAILED.
   if [[ "${STEP_CLOSED:-0}" -eq 1 ]]; then
-    draw_error "$CURRENT_STEP" "$TOTAL_STEPS" "$CURRENT_TITLE" "$LOG_FILE"
+    draw_error "$CURRENT_STEP" "$TOTAL_STEPS" "$CURRENT_TITLE" "$LOG_DIR/fail-summary.log"
     exit "$rc"
   fi
   step_timer_end "$rc"
-  draw_error "$CURRENT_STEP" "$TOTAL_STEPS" "$CURRENT_TITLE" "$LOG_FILE"
+  draw_error "$CURRENT_STEP" "$TOTAL_STEPS" "$CURRENT_TITLE" "$LOG_DIR/fail-summary.log"
 ' ERR
 
 # --------------------------------------------------
