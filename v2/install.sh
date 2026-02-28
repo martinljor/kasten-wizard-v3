@@ -85,9 +85,16 @@ step_timer_end() {
 # Cleanup
 # --------------------------------------------------
 cleanup() {
+  local rc=$?
   enable_terminal_input
-  # Never fail cleanup/final-summary
-  source ./steps/99-final-summary.sh || true
+
+  # Show final summary only on successful run.
+  # On error, keep the error screen/log context instead of overriding with green summary.
+  if [[ "$rc" -eq 0 ]]; then
+    source ./steps/99-final-summary.sh || true
+  else
+    show_cursor || true
+  fi
 
   echo
   echo " "
