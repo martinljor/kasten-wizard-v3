@@ -120,6 +120,22 @@ create_cloudinit k3s-worker2
 # --------------------------------------------------
 # VM creator (NAT: network=default)
 # --------------------------------------------------
+VIRT_TYPE="kvm"
+CPU_MODEL="host-model"
+MACHINE_OPT=""
+
+if [[ ! -e /dev/kvm ]]; then
+  VIRT_TYPE="qemu"
+  CPU_MODEL="max"
+fi
+
+if [[ "$ARCH" == "aarch64" ]]; then
+  CPU_MODEL="max"
+  MACHINE_OPT="virt"
+fi
+
+log "VM platform profile: arch=$ARCH virt_type=$VIRT_TYPE cpu_model=$CPU_MODEL${MACHINE_OPT:+ machine=$MACHINE_OPT}"
+
 create_vm() {
   local name="$1"
   local mem="$2"
@@ -132,18 +148,36 @@ create_vm() {
     "$IMG_DIR/$name.qcow2"
   run_bg sudo qemu-img resize "$IMG_DIR/$name.qcow2" "$DISK_SIZE"
 
-  run_bg sudo virt-install \
-    --name "$name" \
-    --memory "$mem" \
-    --vcpus "$vcpus" \
-    --cpu host-model \
-    --disk path="$IMG_DIR/$name.qcow2",format=qcow2 \
-    --disk path="$CI_DIR/$name-seed.iso",device=cdrom \
-    --os-variant ubuntu22.04 \
-    --network network=default,model=virtio \
-    --graphics none \
-    --import \
-    --noautoconsole
+  if [[ -n "$MACHINE_OPT" ]]; then
+    run_bg sudo virt-install \
+      --name "$name" \
+      --memory "$mem" \
+      --vcpus "$vcpus" \
+      --virt-type "$VIRT_TYPE" \
+      --cpu "$CPU_MODEL" \
+      --machine "$MACHINE_OPT" \
+      --disk path="$IMG_DIR/$name.qcow2",format=qcow2 \
+      --disk path="$CI_DIR/$name-seed.iso",device=cdrom \
+      --os-variant ubuntu22.04 \
+      --network network=default,model=virtio \
+      --graphics none \
+      --import \
+      --noautoconsole
+  else
+    run_bg sudo virt-install \
+      --name "$name" \
+      --memory "$mem" \
+      --vcpus "$vcpus" \
+      --virt-type "$VIRT_TYPE" \
+      --cpu "$CPU_MODEL" \
+      --disk path="$IMG_DIR/$name.qcow2",format=qcow2 \
+      --disk path="$CI_DIR/$name-seed.iso",device=cdrom \
+      --os-variant ubuntu22.04 \
+      --network network=default,model=virtio \
+      --graphics none \
+      --import \
+      --noautoconsole
+  fi
 }
 
 progress 60
