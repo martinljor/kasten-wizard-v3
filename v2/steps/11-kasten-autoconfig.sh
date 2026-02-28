@@ -35,26 +35,18 @@ if ! ask_yes_no "Configure Kasten Location Profile automatically with MinIO?" "y
 fi
 
 ACCESS_FILE="/var/log/k10-mj/access-summary.log"
-if [[ ! -f "$ACCESS_FILE" ]]; then
-  log "ERROR: access-summary.log not found; cannot autoconfigure profile"
+MINIO_ENV_FILE="/var/log/k10-mj/minio.env"
+
+if [[ ! -f "$MINIO_ENV_FILE" ]]; then
+  log "ERROR: $MINIO_ENV_FILE not found; cannot autoconfigure profile"
   exit 1
 fi
 
-MINIO_LINE="$(grep -m1 '^MinIO S3 (master OS)' "$ACCESS_FILE" || true)"
-BUCKET_LINE="$(grep -m1 '^MinIO Bucket' "$ACCESS_FILE" || true)"
+# shellcheck disable=SC1090
+source "$MINIO_ENV_FILE"
 
-if [[ -z "$MINIO_LINE" || -z "$BUCKET_LINE" ]]; then
-  log "ERROR: MinIO metadata not found in access summary"
-  exit 1
-fi
-
-MINIO_ENDPOINT="$(echo "$MINIO_LINE" | awk -F'\| ' '{print $2}' | xargs)"
-MINIO_USER="$(echo "$MINIO_LINE" | sed -E 's/.*AccessKey: ([^| ]+).*/\1/' | xargs)"
-MINIO_PASS="$(echo "$MINIO_LINE" | sed -E 's/.*SecretKey: (.*)$/\1/' | xargs)"
-MINIO_BUCKET="$(echo "$BUCKET_LINE" | awk -F'\| ' '{print $2}' | xargs)"
-
-if [[ -z "$MINIO_ENDPOINT" || -z "$MINIO_USER" || -z "$MINIO_PASS" || -z "$MINIO_BUCKET" ]]; then
-  log "ERROR: Failed to parse MinIO endpoint/credentials/bucket"
+if [[ -z "${MINIO_ENDPOINT:-}" || -z "${MINIO_USER:-}" || -z "${MINIO_PASS:-}" || -z "${MINIO_BUCKET:-}" ]]; then
+  log "ERROR: MinIO env file missing required values"
   exit 1
 fi
 

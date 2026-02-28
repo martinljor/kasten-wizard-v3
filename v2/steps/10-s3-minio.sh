@@ -115,6 +115,14 @@ echo "MinIO S3 (master OS) | ${MASTER_ENDPOINT} | AccessKey: ${MINIO_USER} | Sec
 echo "MinIO Console (master OS) | http://${MASTER_IP}:9001 | AccessKey: ${MINIO_USER} | SecretKey: ${MINIO_PASS}" >> "$ACCESS_FILE"
 echo "MinIO Bucket | ${MINIO_BUCKET}" >> "$ACCESS_FILE"
 
+# Machine-readable values for next automation step
+cat > /var/log/k10-mj/minio.env <<EOF
+MINIO_ENDPOINT=${MASTER_ENDPOINT}
+MINIO_BUCKET=${MINIO_BUCKET}
+MINIO_USER=${MINIO_USER}
+MINIO_PASS=${MINIO_PASS}
+EOF
+
 log "MinIO ready on k3s-master OS: ${MASTER_ENDPOINT} (bucket: ${MINIO_BUCKET})"
 
 progress 100
