@@ -11,7 +11,17 @@ ask_yes_no() {
   local prompt="$1"
   local default="${2:-yes}"
   local answer
-  read -r -p "$prompt [${default}/no]: " answer || true
+  local row_prompt row_input left
+
+  row_prompt=$((PANEL_TOP + 10))
+  row_input=$((PANEL_TOP + 11))
+  left="$(panel_left)"
+
+  print_green_line "$prompt [${default}/no]" "$row_prompt"
+  tput cup "$row_input" "$((left + 2))"
+  printf "${BG_GREEN}${FG_BLACK}> ${RESET}"
+  read -r answer || true
+
   answer="${answer:-$default}"
   [[ "$answer" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]
 }
