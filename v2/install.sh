@@ -24,11 +24,23 @@ user_abort() {
 # Log setup
 # --------------------------------------------------
 LOG_DIR="/var/log/k10-mj"
-LOG_FILE="$LOG_DIR/kubernetes-lab-installer.log"
-STEP_LOG_FILE="$LOG_DIR/steps-status.log"
+RUN_ID="$(date +%Y%m%d-%H%M%S)-$RANDOM"
+LOG_FILE="$LOG_DIR/kubernetes-lab-installer-${RUN_ID}.log"
+STEP_LOG_FILE="$LOG_DIR/steps-status-${RUN_ID}.log"
+ACCESS_FILE="$LOG_DIR/access-summary-${RUN_ID}.log"
+FAIL_SUMMARY_FILE="$LOG_DIR/fail-summary-${RUN_ID}.log"
 
 mkdir -p "$LOG_DIR"
-touch "$LOG_FILE" "$STEP_LOG_FILE"
+touch "$LOG_FILE" "$STEP_LOG_FILE" "$ACCESS_FILE"
+
+# Keep backward-compatible "latest" pointers
+ln -sfn "$LOG_FILE" "$LOG_DIR/kubernetes-lab-installer.log"
+ln -sfn "$STEP_LOG_FILE" "$LOG_DIR/steps-status.log"
+ln -sfn "$ACCESS_FILE" "$LOG_DIR/access-summary.log"
+ln -sfn "$FAIL_SUMMARY_FILE" "$LOG_DIR/fail-summary.log"
+
+echo "[INFO] RUN_ID=$RUN_ID" >> "$LOG_FILE"
+echo "[INFO] RUN_ID=$RUN_ID" >> "$STEP_LOG_FILE"
 
 # --------------------------------------------------
 # run_bg (exported)
@@ -39,6 +51,8 @@ run_bg() {
 }
 export STEP_LOG_FILE
 export START_TIME
+export RUN_ID
+export ACCESS_FILE
 
 # --------------------------------------------------
 # Wizard state
@@ -110,7 +124,7 @@ trap cleanup EXIT
 write_fail_summary() {
   local rc="$1"
   local failed_cmd="$2"
-  local fail_file="$LOG_DIR/fail-summary.log"
+  local fail_file="$FAIL_SUMMARY_FILE"
 
   {
     echo "=== INSTALL FAILED ==="
@@ -140,11 +154,11 @@ trap 'rc=$?;
   write_fail_summary "$rc" "$failed_cmd";
   # If the current step was already closed/logged, do NOT re-log it as FAILED.
   if [[ "${STEP_CLOSED:-0}" -eq 1 ]]; then
-    draw_error "$CURRENT_STEP" "$TOTAL_STEPS" "$CURRENT_TITLE" "$LOG_DIR/fail-summary.log"
+    draw_error "$CURRENT_STEP" "$TOTAL_STEPS" "$CURRENT_TITLE" "$FAIL_SUMMARY_FILE"
     exit "$rc"
   fi
   step_timer_end "$rc"
-  draw_error "$CURRENT_STEP" "$TOTAL_STEPS" "$CURRENT_TITLE" "$LOG_DIR/fail-summary.log"
+  draw_error "$CURRENT_STEP" "$TOTAL_STEPS" "$CURRENT_TITLE" "$FAIL_SUMMARY_FILE"
 ' ERR
 
 # --------------------------------------------------
