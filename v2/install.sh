@@ -57,7 +57,7 @@ export ACCESS_FILE
 # --------------------------------------------------
 # Wizard state
 # --------------------------------------------------
-TOTAL_STEPS=10
+TOTAL_STEPS=11
 CURRENT_STEP=0
 CURRENT_TITLE=""
 
@@ -316,6 +316,28 @@ draw_step 10 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
 source ./steps/11-kasten-autoconfig.sh || STEP_RC=$?
 
 draw_step 10 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
+step_timer_end "$STEP_RC"
+STEP_CLOSED=1
+sleep 1
+
+if (( STEP_RC != 0 )); then
+  exit "$STEP_RC"
+fi
+
+# ==================================================
+# STEP 11 – Stateless Demo App (port 8080)
+# ==================================================
+CURRENT_STEP=11
+CURRENT_TITLE="DEPLOY STATELESS DEMO APP (PORT 8080)"
+
+STEP_CLOSED=0
+STEP_RC=0
+step_timer_start
+draw_step 11 "$TOTAL_STEPS" "$CURRENT_TITLE" 10
+
+source ./steps/12-demo-stateless.sh || STEP_RC=$?
+
+draw_step 11 "$TOTAL_STEPS" "$CURRENT_TITLE" 100
 step_timer_end "$STEP_RC"
 STEP_CLOSED=1
 sleep 1
