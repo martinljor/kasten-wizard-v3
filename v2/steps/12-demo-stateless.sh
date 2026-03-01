@@ -217,7 +217,7 @@ spec:
   rules:
     - http:
         paths:
-          - path: /
+          - path: /status
             pathType: Prefix
             backend:
               service:
@@ -279,12 +279,12 @@ fi
 
 progress 80
 log "Validating lab-status endpoint"
-run_bg curl -fsS "http://${INGRESS_LB_IP}/" >/dev/null
+run_bg curl -fsS "http://${INGRESS_LB_IP}/status" >/dev/null
 
 run_bg touch "$ACCESS_FILE" || true
-echo "Demo App (lab-status) | http://${HOST_LAN_IP}:${DEMO_PORT}/ | Stateless" >> "$ACCESS_FILE"
+echo "Demo App (lab-status) | http://${HOST_LAN_IP}:${DEMO_PORT}/status | Stateless" >> "$ACCESS_FILE"
 
-echo "LAB_STATUS_URL=http://${HOST_LAN_IP}:${DEMO_PORT}/" >> /var/log/k10-mj/minio.env
+echo "LAB_STATUS_URL=http://${HOST_LAN_IP}:${DEMO_PORT}/status" >> /var/log/k10-mj/minio.env
 
 progress 100
 log "STEP 11 completed successfully"
