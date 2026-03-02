@@ -1,64 +1,73 @@
-<mxfile host="app.diagrams.net" modified="2026-03-02T13:10:00.000Z" agent="OpenClaw" version="29.6.0" type="device">
-  <diagram id="arch-v3-icons" name="Architecture">
-    <mxGraphModel dx="1800" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1000" math="0" shadow="0">
+<mxfile host="app.diagrams.net" modified="2026-03-02T13:14:00.000Z" agent="OpenClaw" version="29.6.0" type="device">
+  <diagram id="arch-v3-bottom-up" name="Architecture">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
 
         <mxCell id="bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#dbe3ee;" vertex="1" parent="1">
-          <mxGeometry x="30" y="20" width="1720" height="940" as="geometry"/>
+          <mxGeometry x="40" y="20" width="1520" height="940" as="geometry"/>
         </mxCell>
 
-        <mxCell id="veeam" value="" style="shape=image;imageAspect=1;aspect=fixed;image=https://upload.wikimedia.org/wikipedia/commons/9/90/Veeam_logo.svg;" vertex="1" parent="1">
-          <mxGeometry x="70" y="45" width="220" height="70" as="geometry"/>
+        <mxCell id="title" value="Kasten Wizard v3 - Bottom-Up Architecture" style="text;html=1;strokeColor=none;fillColor=none;fontSize=24;fontStyle=1;align=center;verticalAlign=middle" vertex="1" parent="1">
+          <mxGeometry x="360" y="30" width="880" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="mj" value="MJ" style="text;html=1;strokeColor=none;fillColor=none;fontSize=14;fontStyle=1;align=right;fontColor=#4b5563" vertex="1" parent="1">
+          <mxGeometry x="1450" y="40" width="80" height="24" as="geometry"/>
         </mxCell>
 
-        <mxCell id="title" value="Kasten Wizard v3 - Lab Architecture" style="text;html=1;strokeColor=none;fillColor=none;fontSize=25;fontStyle=1;fontColor=#111827;align=left;verticalAlign=middle" vertex="1" parent="1">
-          <mxGeometry x="320" y="55" width="900" height="40" as="geometry"/>
-        </mxCell>
-        <mxCell id="mj" value="Designed by MJ" style="text;html=1;strokeColor=none;fillColor=none;fontSize=14;fontStyle=2;fontColor=#4b5563;align=right" vertex="1" parent="1">
-          <mxGeometry x="1450" y="58" width="260" height="30" as="geometry"/>
+        <!-- Bottom layer -->
+        <mxCell id="phy" value="Physical / Hypervisor Layer (ESXi)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e5e7eb;strokeColor=#6b7280;fontStyle=1;align=center" vertex="1" parent="1">
+          <mxGeometry x="120" y="860" width="1360" height="60" as="geometry"/>
         </mxCell>
 
-        <mxCell id="user" value="User / Browser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#3b82f6;fontStyle=1" vertex="1" parent="1"><mxGeometry x="90" y="170" width="220" height="70" as="geometry"/></mxCell>
+        <!-- Host layer -->
+        <mxCell id="host" value="Host VM: lnx (install.sh runner)&#xa;libvirt + NAT 192.168.122.0/24&#xa;DNAT publishes K10 and /status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontStyle=1;align=center" vertex="1" parent="1">
+          <mxGeometry x="280" y="730" width="1040" height="90" as="geometry"/>
+        </mxCell>
 
-        <mxCell id="hostBox" value="Host VM: lnx&#xa;(install.sh runner)&#xa;192.168.1.73" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontStyle=1" vertex="1" parent="1"><mxGeometry x="380" y="160" width="360" height="90" as="geometry"/></mxCell>
-        <mxCell id="ubuntuLogo" value="" style="shape=image;imageAspect=1;aspect=fixed;image=https://upload.wikimedia.org/wikipedia/commons/9/9e/UbuntuCoF.svg;" vertex="1" parent="1"><mxGeometry x="760" y="165" width="70" height="70" as="geometry"/></mxCell>
+        <!-- Nested VM layer -->
+        <mxCell id="master" value="k3s-master" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#dc2626;fontStyle=1" vertex="1" parent="1"><mxGeometry x="260" y="610" width="250" height="70" as="geometry"/></mxCell>
+        <mxCell id="worker1" value="k3s-worker1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#dc2626" vertex="1" parent="1"><mxGeometry x="560" y="610" width="250" height="70" as="geometry"/></mxCell>
+        <mxCell id="worker2" value="k3s-worker2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#dc2626" vertex="1" parent="1"><mxGeometry x="860" y="610" width="250" height="70" as="geometry"/></mxCell>
 
-        <mxCell id="pub" value="Published URLs&#xa;• /k10/#&#xa;• :8080/status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0891b2" vertex="1" parent="1"><mxGeometry x="880" y="160" width="280" height="90" as="geometry"/></mxCell>
+        <!-- Kubernetes services layer -->
+        <mxCell id="svc" value="K3s Cluster Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;fontStyle=1;fontSize=16" vertex="1" parent="1">
+          <mxGeometry x="250" y="420" width="900" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="k10" value="Kasten K10" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#6366f1;fontStyle=1" vertex="1" parent="1"><mxGeometry x="300" y="470" width="180" height="60" as="geometry"/></mxCell>
+        <mxCell id="longhorn" value="Longhorn CSI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfeff;strokeColor=#06b6d4;fontStyle=1" vertex="1" parent="1"><mxGeometry x="520" y="470" width="180" height="60" as="geometry"/></mxCell>
+        <mxCell id="status" value="lab-status&#xa;(stateless)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#22c55e" vertex="1" parent="1"><mxGeometry x="740" y="470" width="170" height="60" as="geometry"/></mxCell>
+        <mxCell id="pg" value="PostgreSQL&#xa;(optional stateful)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#fb923c" vertex="1" parent="1"><mxGeometry x="940" y="470" width="190" height="60" as="geometry"/></mxCell>
 
-        <mxCell id="libvirt" value="libvirt / NAT&#xa;192.168.122.0/24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontStyle=1" vertex="1" parent="1"><mxGeometry x="540" y="290" width="240" height="70" as="geometry"/></mxCell>
+        <!-- Integration layer -->
+        <mxCell id="minio" value="MinIO (OS service on k3s-master)&#xa;Bucket: kasten-backups" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffedd5;strokeColor=#ea580c;fontStyle=1;align=center" vertex="1" parent="1">
+          <mxGeometry x="1080" y="280" width="360" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="profile" value="Kasten Location Profile (S3)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f9ff;strokeColor=#0284c7;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="680" y="300" width="300" height="60" as="geometry"/>
+        </mxCell>
 
-        <mxCell id="master" value="k3s-master" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#dc2626;fontStyle=1" vertex="1" parent="1"><mxGeometry x="240" y="400" width="220" height="64" as="geometry"/></mxCell>
-        <mxCell id="worker1" value="k3s-worker1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#dc2626" vertex="1" parent="1"><mxGeometry x="500" y="400" width="220" height="64" as="geometry"/></mxCell>
-        <mxCell id="worker2" value="k3s-worker2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#dc2626" vertex="1" parent="1"><mxGeometry x="760" y="400" width="220" height="64" as="geometry"/></mxCell>
+        <!-- Access layer -->
+        <mxCell id="urls" value="Published URLs&#xa;http://192.168.1.73/k10/#&#xa;http://192.168.1.73:8080/status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#3b82f6;fontStyle=1;align=left;spacingLeft=12" vertex="1" parent="1">
+          <mxGeometry x="420" y="170" width="500" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="user" value="User / Browser (LAN)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bfdbfe;strokeColor=#2563eb;fontStyle=1;align=center" vertex="1" parent="1">
+          <mxGeometry x="980" y="180" width="240" height="70" as="geometry"/>
+        </mxCell>
 
-        <mxCell id="cluster" value="K3s Cluster Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;fontStyle=1;fontSize=16" vertex="1" parent="1"><mxGeometry x="360" y="510" width="650" height="350" as="geometry"/></mxCell>
-
-        <mxCell id="k8sLogo" value="" style="shape=image;imageAspect=1;aspect=fixed;image=https://upload.wikimedia.org/wikipedia/commons/3/39/Kubernetes_logo_without_workmark.svg;" vertex="1" parent="1"><mxGeometry x="385" y="530" width="46" height="46" as="geometry"/></mxCell>
-
-        <mxCell id="kastenCard" value="Kasten K10" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#6366f1;fontStyle=1" vertex="1" parent="1"><mxGeometry x="450" y="530" width="180" height="70" as="geometry"/></mxCell>
-        <mxCell id="longhornCard" value="Longhorn CSI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfeff;strokeColor=#06b6d4;fontStyle=1" vertex="1" parent="1"><mxGeometry x="650" y="530" width="180" height="70" as="geometry"/></mxCell>
-        <mxCell id="labCard" value="lab-status (stateless)&#xa;/status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#22c55e" vertex="1" parent="1"><mxGeometry x="850" y="530" width="140" height="70" as="geometry"/></mxCell>
-
-        <mxCell id="postgresCard" value="PostgreSQL (optional)&#xa;demo-db / people table" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#fb923c" vertex="1" parent="1"><mxGeometry x="450" y="630" width="240" height="80" as="geometry"/></mxCell>
-        <mxCell id="pgLogo" value="" style="shape=image;imageAspect=1;aspect=fixed;image=https://upload.wikimedia.org/wikipedia/commons/2/29/Postgresql_elephant.svg;" vertex="1" parent="1"><mxGeometry x="700" y="640" width="55" height="55" as="geometry"/></mxCell>
-
-        <mxCell id="minioBox" value="MinIO (OS service on k3s-master)&#xa;API :9000 | Console :9001&#xa;Bucket: kasten-backups" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffedd5;strokeColor=#ea580c;fontStyle=1" vertex="1" parent="1"><mxGeometry x="1110" y="390" width="320" height="110" as="geometry"/></mxCell>
-        <mxCell id="minioLogo" value="" style="shape=image;imageAspect=1;aspect=fixed;image=https://raw.githubusercontent.com/minio/artwork/main/logo/MinIO_logo_light.svg;" vertex="1" parent="1"><mxGeometry x="1445" y="405" width="180" height="70" as="geometry"/></mxCell>
-
-        <mxCell id="logs" value="Outputs&#xa;• RUN_ID logs&#xa;• access-summary&#xa;• fail-summary" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f9ff;strokeColor=#0284c7" vertex="1" parent="1"><mxGeometry x="1110" y="560" width="320" height="90" as="geometry"/></mxCell>
-
-        <mxCell id="a1" edge="1" parent="1" source="user" target="hostBox" style="endArrow=block;strokeWidth=2;strokeColor=#2563eb;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="a2" edge="1" parent="1" source="hostBox" target="pub" style="endArrow=block;strokeWidth=2;strokeColor=#0284c7;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="a3" edge="1" parent="1" source="hostBox" target="libvirt" style="endArrow=block;strokeWidth=2;strokeColor=#16a34a;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="a4" edge="1" parent="1" source="libvirt" target="master" style="endArrow=block;strokeColor=#b45309;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="a5" edge="1" parent="1" source="libvirt" target="worker1" style="endArrow=block;strokeColor=#b45309;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="a6" edge="1" parent="1" source="libvirt" target="worker2" style="endArrow=block;strokeColor=#b45309;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="a7" edge="1" parent="1" source="master" target="cluster" style="endArrow=block;strokeColor=#7c3aed;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="a8" edge="1" parent="1" source="worker1" target="cluster" style="endArrow=block;strokeColor=#7c3aed;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="a9" edge="1" parent="1" source="worker2" target="cluster" style="endArrow=block;strokeColor=#7c3aed;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="a10" value="S3 Location Profile" edge="1" parent="1" source="cluster" target="minioBox" style="endArrow=block;strokeColor=#ea580c;fontSize=11;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Bottom-up arrows -->
+        <mxCell id="e1" edge="1" parent="1" source="phy" target="host" style="endArrow=block;strokeWidth=2;strokeColor=#6b7280;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="host" target="master" style="endArrow=block;strokeColor=#16a34a;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="host" target="worker1" style="endArrow=block;strokeColor=#16a34a;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="host" target="worker2" style="endArrow=block;strokeColor=#16a34a;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="master" target="svc" style="endArrow=block;strokeColor=#7c3aed;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="worker1" target="svc" style="endArrow=block;strokeColor=#7c3aed;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="worker2" target="svc" style="endArrow=block;strokeColor=#7c3aed;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" value="S3 backup path" edge="1" parent="1" source="svc" target="profile" style="endArrow=block;strokeColor=#0284c7;html=1;fontSize=11"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="profile" target="minio" style="endArrow=block;strokeColor=#ea580c;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="host" target="urls" style="endArrow=block;strokeColor=#2563eb;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="urls" target="user" style="endArrow=block;strokeWidth=2;strokeColor=#2563eb;html=1"><mxGeometry relative="1" as="geometry"/></mxCell>
       </root>
     </mxGraphModel>
   </diagram>
