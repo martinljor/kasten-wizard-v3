@@ -5,7 +5,7 @@ SUMMARY_STEP="$TOTAL_STEPS"
 SUMMARY_TITLE="INSTALLATION COMPLETED"
 
 OLD_PANEL_HEIGHT="$PANEL_HEIGHT"
-PANEL_HEIGHT=22
+PANEL_HEIGHT=24
 
 hide_cursor
 clear
@@ -75,6 +75,17 @@ if [[ -f "$ACCESS_FILE" ]]; then
     ((ROW+=1))
     print_green_line "STATELESS APP:" "$ROW"; ((ROW+=1))
     print_green_line "- Lab Status: ${DEMO_URL}" "$ROW"; ((ROW+=1))
+  fi
+
+  STATEFUL_LINE="$(grep -m1 '^Stateful App (postgres)' "$ACCESS_FILE" 2>/dev/null || true)"
+  CHECK_SCRIPT_LINE="$(grep -m1 '^Postgres Check Script' "$ACCESS_FILE" 2>/dev/null || true)"
+  if [[ -n "${STATEFUL_LINE:-}" ]]; then
+    ((ROW+=1))
+    print_green_line "STATEFUL APP:" "$ROW"; ((ROW+=1))
+    print_green_line "- ${STATEFUL_LINE}" "$ROW"; ((ROW+=1))
+    if [[ -n "${CHECK_SCRIPT_LINE:-}" ]]; then
+      print_green_line "- ${CHECK_SCRIPT_LINE}" "$ROW"; ((ROW+=1))
+    fi
   fi
 fi
 

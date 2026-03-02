@@ -11,19 +11,29 @@ ask_yes_no() {
   local prompt="$1"
   local default="${2:-yes}"
   local answer
-  local row_prompt row_input left
+  local row_prompt row_input row_msg left
 
   row_prompt=$((PANEL_TOP + 10))
   row_input=$((PANEL_TOP + 11))
+  row_msg=$((PANEL_TOP + 12))
   left="$(panel_left)"
 
-  print_green_line "$prompt [${default}/no]" "$row_prompt"
-  tput cup "$row_input" "$((left + 2))"
-  printf "${BG_GREEN}${FG_BLACK}> ${RESET}"
-  read -r answer || true
+  while true; do
+    print_green_line "$prompt [yes/no]" "$row_prompt"
+    print_green_line "" "$row_msg"
+    tput cup "$row_input" "$((left + 2))"
+    printf "${BG_GREEN}${FG_BLACK}> ${RESET}"
+    read -r answer || true
+    answer="${answer:-$default}"
 
-  answer="${answer:-$default}"
-  [[ "$answer" =~ ^([Yy]|[Yy][Ee][Ss])$ ]]
+    case "${answer,,}" in
+      yes) return 0 ;;
+      no)  return 1 ;;
+      *)
+        print_green_line "Invalid option. Please answer: yes or no" "$row_msg"
+        ;;
+    esac
+  done
 }
 
 progress 10
