@@ -1,22 +1,140 @@
-# kasten-wizard-v2
-Auto deploy Kasten in ubuntu VM.
+# kasten-wizard-v3
 
-If running on VM config virtualization capabilities: Expose hardware assisted virtualization to the guest OS
+Automated lab deployment for **Kasten K10** on a nested K3s environment.
 
-In linux validate KVM:
+This project is designed for demo/lab usage where you want a reproducible setup with:
+- K3s cluster (master + 2 workers)
+- Longhorn CSI
+- Kasten K10
+- MinIO (running as an OS service on k3s-master)
+- Optional Kasten Location Profile auto-configuration
+- Stateless `lab-status` app exposed on port `8080`
+
+---
+
+## 1) What this project does
+
+`install.sh` provisions and validates a full lab workflow end-to-end, including post-install UX output with URLs and run-specific logs.
+
+It is optimized for:
+- repeatable demos
+- quick reset via VM snapshot restore
+- low-friction validation of Kasten features
+
+---
+
+## 2) Requirements
+
+- Ubuntu host VM (recommended)
+- Nested virtualization enabled (VMX/SVM passthrough)
+- `sudo` access
+- Internet access for package/image downloads
+- Recommended resources on lab host VM:
+  - 8 vCPU
+  - 24 GB RAM
+
+Check virtualization support:
+
+```bash
 egrep -c '(vmx|svm)' /proc/cpuinfo
+```
 
-Then do git clone.
+> Officially tested on Linux/x86_64 lab flow. ARM/Mac is best-effort.
 
-make files executable: chmod -R +x *
+---
 
-Go to v2 folder: cd kasten-wizard-v2/v2/
+## 3) Quick start
 
-Run install: sudo ./install.sh
+```bash
+git clone https://github.com/martinljor/kasten-wizard-v3.git
+cd kasten-wizard-v3
+chmod -R +x .
+sudo ./install.sh
+```
 
-Wait to finish.
+During execution, you may be prompted for optional auto-configuration steps (for example, Kasten Location Profile bootstrap).
 
-In the host VM you will find 3 VMs: Master, worker1 and worker2.
-This 3 VMs are using network: 192.168.122.0/24.
+---
 
-For kasten there is an ingress for k10 dashboard.
+## 4) How to run (recommended flow)
+
+1. Restore your host VM snapshot (clean lab baseline).
+2. Clone/pull latest repository.
+3. Run:
+   ```bash
+   sudo ./install.sh
+   ```
+4. Wait for completion panel with URLs.
+
+---
+
+## 5) What each step does
+
+- **Step 1**: Environment validation
+- **Step 2**: System preparation
+- **Step 3**: Required tooling install
+- **Step 4**: Create nested K3s VMs
+- **Step 5**: Install K3s cluster
+- **Step 6**: Cluster health checks
+- **Step 7**: Install Longhorn
+- **Step 8**: Install Kasten K10 + ingress exposure
+- **Step 9**: Install MinIO on k3s-master OS + create bucket
+- **Step 10**: (Optional) Auto-configure Kasten Location Profile
+- **Step 11**: Deploy stateless `lab-status` service on `:8080/status`
+
+---
+
+## 6) Outputs and access
+
+Typical outputs after success:
+- K10 internal URL
+- K10 LAN URL
+- MinIO endpoint and bucket
+- Stateless app URL (`/status`)
+
+Common access examples:
+- `http://<host-lan-ip>/k10/#`
+- `http://<host-lan-ip>:8080/status`
+
+---
+
+## 7) Logs and run IDs
+
+Each execution has a unique `RUN_ID`.
+
+Per-run logs are written as:
+- `kubernetes-lab-installer-<RUN_ID>.log`
+- `steps-status-<RUN_ID>.log`
+- `access-summary-<RUN_ID>.log`
+- `fail-summary-<RUN_ID>.log`
+
+Latest symlinks are also maintained:
+- `/var/log/k10-mj/kubernetes-lab-installer.log`
+- `/var/log/k10-mj/steps-status.log`
+- `/var/log/k10-mj/access-summary.log`
+- `/var/log/k10-mj/fail-summary.log`
+
+---
+
+## 8) Troubleshooting
+
+- If K10 URL works internally but not from LAN, check host firewall/NAT rules.
+- If nested VMs fail on ARM/Mac, validate virt/cpu model compatibility in step 4.
+- If an execution fails, inspect:
+  ```bash
+  /var/log/k10-mj/fail-summary.log
+  ```
+
+---
+
+## 9) Repository layout
+
+```text
+install.sh
+ui.sh
+steps/
+ansible/
+README.md
+```
+
+This repository no longer requires running from a `v2/` subfolder.
