@@ -97,7 +97,7 @@ run_bg kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/externa
 run_bg kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/v6.3.3/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml
 run_bg kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/v6.3.3/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml
 run_bg kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/v6.3.3/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
-run_bg kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/v6.3.3/deploy/kubernetes/snapshot-controller/snapshot-controller-deployment.yaml
+# setup-snapshot-controller.yaml already creates the deployment in kube-system
 
 run_bg kubectl -n kube-system rollout status deploy/snapshot-controller --timeout=5m
 
@@ -108,7 +108,7 @@ kind: VolumeSnapshotClass
 metadata:
   name: longhorn-snapshot-vsc
   annotations:
-    snapshot.storage.kubernetes.io/is-default-class: "true"
+    snapshot.storage.kubernetes.io/is-default-class: 'true'
 driver: driver.longhorn.io
 deletionPolicy: Delete
 EOF
