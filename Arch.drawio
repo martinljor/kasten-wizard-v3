@@ -1,0 +1,43 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36" version="29.6.0">
+  <diagram name="Página-1" id="PpO4NTLNfr7DvMWu5JEH">
+    <mxGraphModel dx="1426" dy="699" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="6HvWArM1bohTtRk3fffc-1" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" value="" vertex="1">
+          <mxGeometry height="80" width="60" x="90" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="6HvWArM1bohTtRk3fffc-2" parent="1" style="pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#13B24B;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.veeam_logo;" value="" vertex="1">
+          <mxGeometry height="24" width="136" x="100" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="6HvWArM1bohTtRk3fffc-3" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#DF8C42;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.veeam_agents;" value="" vertex="1">
+          <mxGeometry height="34" width="34" x="202" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="6HvWArM1bohTtRk3fffc-4" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#DF8C42;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.veeam_explorer_for_sql;" value="" vertex="1">
+          <mxGeometry height="80" width="110" x="240" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="6HvWArM1bohTtRk3fffc-5" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#005F4B;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.network_proxy;" value="" vertex="1">
+          <mxGeometry height="76" width="70" x="100" y="304" as="geometry" />
+        </mxCell>
+        <mxCell id="6HvWArM1bohTtRk3fffc-6" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#005F4B;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.object_storage;" value="" vertex="1">
+          <mxGeometry height="80" width="110" x="270" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="6HvWArM1bohTtRk3fffc-7" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#005F4B;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.vbr_configuration_backup;" value="" vertex="1">
+          <mxGeometry height="150" width="140" x="320" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="6HvWArM1bohTtRk3fffc-8" parent="1" style="sketch=0;shadow=0;dashed=0;html=1;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam.3d.network_card;" value="" vertex="1">
+          <mxGeometry height="140" width="120" x="440" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="6HvWArM1bohTtRk3fffc-9" parent="1" style="sketch=0;shadow=0;dashed=0;html=1;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam.3d.physical_storage;" value="" vertex="1">
+          <mxGeometry height="130" width="196" x="94" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="6HvWArM1bohTtRk3fffc-10" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#DF8C42;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.backup_from_storage_snapshots;" value="" vertex="1">
+          <mxGeometry height="114" width="124" x="56" y="236" as="geometry" />
+        </mxCell>
+        <mxCell id="6HvWArM1bohTtRk3fffc-11" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#DF8C42;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.datalabs;" value="" vertex="1">
+          <mxGeometry height="140" width="150" x="40" y="460" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
