@@ -96,7 +96,7 @@ print_green_line() {
   left=$(panel_left)
 
   tput cup "$row" "$((left + 2))"
-  printf "${BG_GREEN}${FG_BLACK} %-*s ${RESET}" "$((PANEL_WIDTH - 4))" "$text"
+  printf "${BG_GREEN}${FG_BLACK} %-*.*s ${RESET}" "$((PANEL_WIDTH - 4))" "$((PANEL_WIDTH - 4))" "$text"
 }
 
 print_red_line() {
@@ -106,7 +106,7 @@ print_red_line() {
   left=$(panel_left)
 
   tput cup "$row" "$((left + 2))"
-  printf "${BG_RED}${FG_WHITE} %-*s ${RESET}" "$((PANEL_WIDTH - 4))" "$text"
+  printf "${BG_RED}${FG_WHITE} %-*.*s ${RESET}" "$((PANEL_WIDTH - 4))" "$((PANEL_WIDTH - 4))" "$text"
 }
 
 # =========================

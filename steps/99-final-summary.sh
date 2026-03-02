@@ -79,12 +79,14 @@ if [[ -f "$ACCESS_FILE" ]]; then
 
   STATEFUL_LINE="$(grep -m1 '^Stateful App (postgres)' "$ACCESS_FILE" 2>/dev/null || true)"
   CHECK_SCRIPT_LINE="$(grep -m1 '^Postgres Check Script' "$ACCESS_FILE" 2>/dev/null || true)"
+  CHECK_SCRIPT_PATH="$(echo "$CHECK_SCRIPT_LINE" | cut -d'|' -f2 | xargs || true)"
+  CHECK_SCRIPT_BASE="$(basename "$CHECK_SCRIPT_PATH" 2>/dev/null || true)"
   if [[ -n "${STATEFUL_LINE:-}" ]]; then
     ((ROW+=1))
     print_green_line "STATEFUL APP:" "$ROW"; ((ROW+=1))
     print_green_line "- ${STATEFUL_LINE}" "$ROW"; ((ROW+=1))
-    if [[ -n "${CHECK_SCRIPT_LINE:-}" ]]; then
-      print_green_line "- ${CHECK_SCRIPT_LINE}" "$ROW"; ((ROW+=1))
+    if [[ -n "${CHECK_SCRIPT_BASE:-}" ]]; then
+      print_green_line "- Check script: ${CHECK_SCRIPT_BASE}" "$ROW"; ((ROW+=1))
     fi
   fi
 fi
