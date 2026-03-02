@@ -4,6 +4,9 @@ set -Eeuo pipefail
 SUMMARY_STEP="$TOTAL_STEPS"
 SUMMARY_TITLE="INSTALLATION COMPLETED"
 
+OLD_PANEL_HEIGHT="$PANEL_HEIGHT"
+PANEL_HEIGHT=22
+
 hide_cursor
 clear
 draw_green_panel
@@ -80,5 +83,6 @@ print_green_line "LOGS:" "$ROW"; ((ROW+=1))
 print_green_line "- $LOG_FILE" "$ROW"; ((ROW+=1))
 print_green_line "- $STEP_LOG_FILE" "$ROW"
 
+PANEL_HEIGHT="$OLD_PANEL_HEIGHT"
 show_cursor
 sleep 4
