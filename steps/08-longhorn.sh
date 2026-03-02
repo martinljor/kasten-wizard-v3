@@ -89,8 +89,35 @@ run_bg kubectl patch storageclass local-path \
 run_bg kubectl patch storageclass longhorn \
   -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 
+progress 90
+log "Installing CSI snapshot CRDs/controller (required by Kasten snapshots)"
+
+run_bg kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/v6.3.3/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml
+run_bg kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/v6.3.3/client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml
+run_bg kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/v6.3.3/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml
+run_bg kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/v6.3.3/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml
+run_bg kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/v6.3.3/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
+run_bg kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/v6.3.3/deploy/kubernetes/snapshot-controller/snapshot-controller-deployment.yaml
+
+run_bg kubectl -n kube-system rollout status deploy/snapshot-controller --timeout=5m
+
+log "Ensuring default VolumeSnapshotClass for Longhorn"
+cat >/tmp/longhorn-vsc.yaml <<'EOF'
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: longhorn-snapshot-vsc
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "true"
+driver: driver.longhorn.io
+deletionPolicy: Delete
+EOF
+run_bg kubectl apply -f /tmp/longhorn-vsc.yaml
+run_bg rm -f /tmp/longhorn-vsc.yaml || true
+
 progress 95
 run_bg kubectl get storageclass
+run_bg kubectl get volumesnapshotclass
 
 progress 100
 log "STEP 08 completed successfully"
