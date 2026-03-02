@@ -15,7 +15,7 @@ This project is designed for demo/lab usage where you want a reproducible setup 
 
 ## Architecture
 
-![Kasten Wizard v3 Architecture](assets/architecture-preview.jpg)
+![Kasten Wizard v3 Architecture](assets/Arch.drawio.png)
 
 - Editable source: `Arch.drawio`
 - Interactive HTML: `Arch.drawio.html`
