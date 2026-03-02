@@ -15,15 +15,7 @@ This project is designed for demo/lab usage where you want a reproducible setup 
 
 ## Architecture
 
-You can view/edit the architecture in draw.io format:
-- `Arch.drawio`
-
-Open the diagram directly in the repository:
-- https://github.com/martinljor/kasten-wizard-v3/blob/main/Arch.drawio
-
-Or open/edit it in draw.io:
-- https://app.diagrams.net/?url=https://raw.githubusercontent.com/martinljor/kasten-wizard-v3/main/Arch.drawio
-
+![Alt](https://github.com/martinljor/kasten-wizard-v3/blob/main/Arch.drawio.html)
 ---
 
 ## 1) What this project does
