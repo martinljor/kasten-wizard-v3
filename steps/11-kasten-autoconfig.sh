@@ -49,7 +49,7 @@ MINIO_ENV_FILE="/var/log/k10-mj/minio.env"
 
 if [[ ! -f "$MINIO_ENV_FILE" ]]; then
   log "ERROR: $MINIO_ENV_FILE not found; cannot autoconfigure profile"
-  exit 1
+  return 1
 fi
 
 # shellcheck disable=SC1090
@@ -57,7 +57,7 @@ source "$MINIO_ENV_FILE"
 
 if [[ -z "${MINIO_ENDPOINT:-}" || -z "${MINIO_USER:-}" || -z "${MINIO_PASS:-}" || -z "${MINIO_BUCKET:-}" ]]; then
   log "ERROR: MinIO env file missing required values"
-  exit 1
+  return 1
 fi
 
 progress 35

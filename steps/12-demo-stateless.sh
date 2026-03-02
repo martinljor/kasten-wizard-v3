@@ -288,7 +288,7 @@ log "Configuring host exposure on port 8080"
 INGRESS_LB_IP="$(kubectl -n "$ING_NS" get svc ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"
 if [[ -z "$INGRESS_LB_IP" ]]; then
   log "ERROR: ingress-nginx LoadBalancer IP not found"
-  exit 1
+  return 1
 fi
 
 get_lan_if() { ip route show default 2>/dev/null | awk '{print $5; exit}'; }
@@ -306,7 +306,7 @@ fi
 
 if [[ -z "$LAN_IF" || -z "$HOST_LAN_IP" ]]; then
   log "ERROR: Unable to detect LAN interface/IP for port 8080 exposure"
-  exit 1
+  return 1
 fi
 
 run_bg sysctl -w net.ipv4.ip_forward=1
@@ -325,7 +325,7 @@ iptables -I FORWARD 1 -i '$VIR_IF' -o '$LAN_IF' -m state --state ESTABLISHED,REL
 
 if ! iptables -t nat -C PREROUTING -i "$LAN_IF" -p tcp --dport ${DEMO_PORT} -j DNAT --to-destination "${INGRESS_LB_IP}:80" >/dev/null 2>&1; then
   log "ERROR: Failed to install DNAT rule for demo port ${DEMO_PORT}"
-  exit 1
+  return 1
 fi
 
 progress 80

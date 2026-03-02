@@ -135,7 +135,7 @@ run_bg kubectl -n "$DB_NS" wait --for=jsonpath='{.status.phase}'=Bound pvc/postg
 PV_NAME="$(kubectl -n "$DB_NS" get pvc postgres-pvc -o jsonpath='{.spec.volumeName}' 2>/dev/null || true)"
 if [[ -z "${PV_NAME:-}" ]]; then
   log "ERROR: postgres-pvc has no bound volume name"
-  exit 1
+  return 1
 fi
 
 if kubectl -n longhorn-system get volumes.longhorn.io "$PV_NAME" >/dev/null 2>&1; then
@@ -154,7 +154,7 @@ if kubectl -n longhorn-system get volumes.longhorn.io "$PV_NAME" >/dev/null 2>&1
     log "ERROR: Longhorn volume $PV_NAME not ready for workloads"
     run_bg kubectl -n longhorn-system get volumes.longhorn.io "$PV_NAME" -o wide || true
     run_bg kubectl -n longhorn-system describe volumes.longhorn.io "$PV_NAME" || true
-    exit 1
+    return 1
   fi
 fi
 
@@ -177,7 +177,7 @@ if [[ "$ok" -ne 1 ]]; then
   log "ERROR: postgres is not responding to queries"
   run_bg kubectl -n "$DB_NS" get pod "$PG_POD" -o wide || true
   run_bg kubectl -n "$DB_NS" describe pod "$PG_POD" || true
-  exit 1
+  return 1
 fi
 
 log "Seeding sample people table"
