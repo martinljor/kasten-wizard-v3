@@ -1,41 +1,77 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36" version="29.6.0">
-  <diagram name="Página-1" id="PpO4NTLNfr7DvMWu5JEH">
-    <mxGraphModel dx="1426" dy="699" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+<mxfile host="app.diagrams.net" modified="2026-03-02T12:54:00.000Z" agent="OpenClaw" version="29.6.0" type="device">
+  <diagram id="arch-v3" name="Architecture">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
       <root>
-        <mxCell id="0" />
-        <mxCell id="1" parent="0" />
-        <mxCell id="6HvWArM1bohTtRk3fffc-1" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" value="" vertex="1">
-          <mxGeometry height="80" width="60" x="90" y="130" as="geometry" />
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="Kasten Wizard v3 - Lab Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=22;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="430" y="20" width="540" height="40" as="geometry"/>
         </mxCell>
-        <mxCell id="6HvWArM1bohTtRk3fffc-2" parent="1" style="pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#13B24B;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.veeam_logo;" value="" vertex="1">
-          <mxGeometry height="24" width="136" x="100" y="50" as="geometry" />
+
+        <mxCell id="user" value="User / Browser&#xa;LAN Access" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;align=center;verticalAlign=middle" vertex="1" parent="1">
+          <mxGeometry x="610" y="80" width="180" height="70" as="geometry"/>
         </mxCell>
-        <mxCell id="6HvWArM1bohTtRk3fffc-3" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#DF8C42;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.veeam_agents;" value="" vertex="1">
-          <mxGeometry height="34" width="34" x="202" y="270" as="geometry" />
+
+        <mxCell id="host" value="Host VM: lnx&#xa;(runs install.sh)&#xa;IP: 192.168.1.73" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;align=center;verticalAlign=middle" vertex="1" parent="1">
+          <mxGeometry x="500" y="190" width="400" height="110" as="geometry"/>
         </mxCell>
-        <mxCell id="6HvWArM1bohTtRk3fffc-4" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#DF8C42;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.veeam_explorer_for_sql;" value="" vertex="1">
-          <mxGeometry height="80" width="110" x="240" y="380" as="geometry" />
+
+        <mxCell id="net" value="libvirt network&#xa;192.168.122.0/24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle" vertex="1" parent="1">
+          <mxGeometry x="590" y="320" width="220" height="70" as="geometry"/>
         </mxCell>
-        <mxCell id="6HvWArM1bohTtRk3fffc-5" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#005F4B;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.network_proxy;" value="" vertex="1">
-          <mxGeometry height="76" width="70" x="100" y="304" as="geometry" />
+
+        <mxCell id="master" value="k3s-master VM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="220" y="430" width="220" height="70" as="geometry"/>
         </mxCell>
-        <mxCell id="6HvWArM1bohTtRk3fffc-6" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#005F4B;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.object_storage;" value="" vertex="1">
-          <mxGeometry height="80" width="110" x="270" y="120" as="geometry" />
+        <mxCell id="worker1" value="k3s-worker1 VM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450" vertex="1" parent="1">
+          <mxGeometry x="470" y="430" width="220" height="70" as="geometry"/>
         </mxCell>
-        <mxCell id="6HvWArM1bohTtRk3fffc-7" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#005F4B;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.vbr_configuration_backup;" value="" vertex="1">
-          <mxGeometry height="150" width="140" x="320" y="290" as="geometry" />
+        <mxCell id="worker2" value="k3s-worker2 VM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450" vertex="1" parent="1">
+          <mxGeometry x="720" y="430" width="220" height="70" as="geometry"/>
         </mxCell>
-        <mxCell id="6HvWArM1bohTtRk3fffc-8" parent="1" style="sketch=0;shadow=0;dashed=0;html=1;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam.3d.network_card;" value="" vertex="1">
-          <mxGeometry height="140" width="120" x="440" y="140" as="geometry" />
+
+        <mxCell id="cluster" value="K3s Cluster Services&#xa;- Kasten K10&#xa;- Longhorn CSI&#xa;- lab-status (/status)&#xa;- Optional PostgreSQL demo-db" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;spacingLeft=12;verticalAlign=middle" vertex="1" parent="1">
+          <mxGeometry x="420" y="540" width="420" height="140" as="geometry"/>
         </mxCell>
-        <mxCell id="6HvWArM1bohTtRk3fffc-9" parent="1" style="sketch=0;shadow=0;dashed=0;html=1;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam.3d.physical_storage;" value="" vertex="1">
-          <mxGeometry height="130" width="196" x="94" y="480" as="geometry" />
+
+        <mxCell id="minio" value="MinIO (OS service on k3s-master)&#xa;API: :9000  Console: :9001&#xa;Bucket: kasten-backups" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;verticalAlign=middle" vertex="1" parent="1">
+          <mxGeometry x="950" y="430" width="300" height="90" as="geometry"/>
         </mxCell>
-        <mxCell id="6HvWArM1bohTtRk3fffc-10" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#DF8C42;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.backup_from_storage_snapshots;" value="" vertex="1">
-          <mxGeometry height="114" width="124" x="56" y="236" as="geometry" />
+
+        <mxCell id="urls" value="Published URLs&#xa;K10: http://192.168.1.73/k10/#&#xa;Lab status: http://192.168.1.73:8080/status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=10;verticalAlign=middle" vertex="1" parent="1">
+          <mxGeometry x="980" y="200" width="320" height="100" as="geometry"/>
         </mxCell>
-        <mxCell id="6HvWArM1bohTtRk3fffc-11" parent="1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#DF8C42;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;shape=mxgraph.veeam2.datalabs;" value="" vertex="1">
-          <mxGeometry height="140" width="150" x="40" y="460" as="geometry" />
+
+        <mxCell id="e1" edge="1" parent="1" source="user" target="host" style="endArrow=block;html=1;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="host" target="net" style="endArrow=block;html=1;strokeWidth=2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="net" target="master" style="endArrow=block;html=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="net" target="worker1" style="endArrow=block;html=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="net" target="worker2" style="endArrow=block;html=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="master" target="cluster" style="endArrow=block;html=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="worker1" target="cluster" style="endArrow=block;html=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="worker2" target="cluster" style="endArrow=block;html=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e9" value="S3 profile" edge="1" parent="1" source="cluster" target="minio" style="endArrow=block;html=1;strokeColor=#d79b00;fontSize=11;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="host" target="urls" style="endArrow=block;html=1;strokeColor=#6c8ebf;">
+          <mxGeometry relative="1" as="geometry"/>
         </mxCell>
       </root>
     </mxGraphModel>
