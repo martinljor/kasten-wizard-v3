@@ -5,7 +5,7 @@ set -u
 # CONFIG
 # =========================
 PANEL_WIDTH=80
-PANEL_HEIGHT=20        
+PANEL_HEIGHT=22        
 CONSOLE_MARGIN=2   
 PANEL_TOP=2  
 

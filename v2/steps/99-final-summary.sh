@@ -57,7 +57,8 @@ fi
 ACCESS_FILE="/var/log/k10-mj/access-summary.log"
 if [[ -f "$ACCESS_FILE" ]]; then
   MINIO_EP="$(grep -m1 '^MinIO S3 (master OS)' "$ACCESS_FILE" | sed -E 's#.*\| (http://[^ ]+) \|.*#\1#' || true)"
-  MINIO_BUCKET="$(grep -m1 '^MinIO Bucket' "$ACCESS_FILE" | awk -F'\| ' '{print $2}' | xargs || true)"
+  MINIO_BUCKET="$(grep -m1 '^MinIO Bucket' "$ACCESS_FILE" | cut -d'|' -f2 | xargs || true)"
+  DEMO_URL="$(grep -m1 '^Demo App (lab-status)' "$ACCESS_FILE" | sed -E 's#.*\| (http://[^ ]+) \|.*#\1#' || true)"
   if [[ -n "${MINIO_EP:-}" ]]; then
     print_green_line "MINIO S3:" "$ROW"; ((ROW+=1))
     print_green_line "- Endpoint: ${MINIO_EP}" "$ROW"; ((ROW+=1))
@@ -65,6 +66,12 @@ if [[ -f "$ACCESS_FILE" ]]; then
       print_green_line "- Bucket:   ${MINIO_BUCKET}" "$ROW"; ((ROW+=1))
     fi
     print_green_line "- AccessKey: kasten (secret hidden)" "$ROW"; ((ROW+=1))
+  fi
+
+  if [[ -n "${DEMO_URL:-}" ]]; then
+    ((ROW+=1))
+    print_green_line "STATELESS APP:" "$ROW"; ((ROW+=1))
+    print_green_line "- Lab Status: ${DEMO_URL}" "$ROW"; ((ROW+=1))
   fi
 fi
 
