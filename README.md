@@ -15,7 +15,10 @@ This project is designed for demo/lab usage where you want a reproducible setup 
 
 ## Architecture
 
-![Alt](https://github.com/martinljor/kasten-wizard-v3/blob/main/Arch.drawio.html)
+![Kasten Wizard v3 Architecture](assets/architecture-preview.jpg)
+
+- Editable source: `Arch.drawio`
+- Interactive HTML: `Arch.drawio.html`
 ---
 
 ## 1) What this project does
