@@ -77,17 +77,60 @@ data:
       with urllib.request.urlopen(req, context=ctx, timeout=6) as r:
         return json.loads(r.read().decode("utf-8"))
 
+    def cpu_to_m(cpu):
+      s = str(cpu)
+      if s.endswith("m"):
+        return float(s[:-1])
+      return float(s) * 1000.0
+
+    def mem_to_mi(mem):
+      s = str(mem)
+      units = {
+        "Ki": 1/1024,
+        "Mi": 1,
+        "Gi": 1024,
+        "Ti": 1024*1024,
+        "K": 1/1000,
+        "M": 1,
+        "G": 1000,
+      }
+      for u, mul in units.items():
+        if s.endswith(u):
+          try:
+            return float(s[:-len(u)]) * mul
+          except Exception:
+            return 0.0
+      try:
+        return float(s) / (1024*1024)
+      except Exception:
+        return 0.0
+
     def fmt_resources(nodes, metrics):
       by_name = {i.get("metadata", {}).get("name"): i for i in metrics.get("items", [])}
       rows = []
       for n in nodes.get("items", []):
         name = n.get("metadata", {}).get("name", "-")
-        cap_cpu = n.get("status", {}).get("capacity", {}).get("cpu", "-")
-        cap_mem = n.get("status", {}).get("capacity", {}).get("memory", "-")
+        cap_cpu_raw = n.get("status", {}).get("capacity", {}).get("cpu", "0")
+        cap_mem_raw = n.get("status", {}).get("capacity", {}).get("memory", "0")
         m = by_name.get(name, {})
-        used_cpu = m.get("usage", {}).get("cpu", "n/a")
-        used_mem = m.get("usage", {}).get("memory", "n/a")
-        rows.append((name, cap_cpu, cap_mem, used_cpu, used_mem))
+        used_cpu_raw = m.get("usage", {}).get("cpu", "0")
+        used_mem_raw = m.get("usage", {}).get("memory", "0")
+
+        cap_cpu_m = cpu_to_m(cap_cpu_raw)
+        used_cpu_m = cpu_to_m(used_cpu_raw)
+        cap_mem_mi = mem_to_mi(cap_mem_raw)
+        used_mem_mi = mem_to_mi(used_mem_raw)
+
+        cpu_pct = (used_cpu_m / cap_cpu_m * 100.0) if cap_cpu_m > 0 else 0.0
+        mem_pct = (used_mem_mi / cap_mem_mi * 100.0) if cap_mem_mi > 0 else 0.0
+
+        rows.append((
+          name,
+          f"{cap_cpu_m/1000:.1f} cores",
+          f"{cap_mem_mi:.0f} Mi",
+          f"{used_cpu_m:.0f}m ({cpu_pct:.0f}%)",
+          f"{used_mem_mi:.0f} Mi ({mem_pct:.0f}%)",
+        ))
       return rows
 
     def pod_health(pods):
