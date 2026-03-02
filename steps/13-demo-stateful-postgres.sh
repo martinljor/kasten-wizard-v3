@@ -129,12 +129,57 @@ run_bg kubectl apply -f /tmp/demo-postgres.yaml
 run_bg rm -f /tmp/demo-postgres.yaml || true
 
 progress 45
+log "Waiting for postgres PVC to bind"
+run_bg kubectl -n "$DB_NS" wait --for=jsonpath='{.status.phase}'=Bound pvc/postgres-pvc --timeout=8m
+
+PV_NAME="$(kubectl -n "$DB_NS" get pvc postgres-pvc -o jsonpath='{.spec.volumeName}' 2>/dev/null || true)"
+if [[ -z "${PV_NAME:-}" ]]; then
+  log "ERROR: postgres-pvc has no bound volume name"
+  exit 1
+fi
+
+if kubectl -n longhorn-system get volumes.longhorn.io "$PV_NAME" >/dev/null 2>&1; then
+  log "Waiting for Longhorn volume $PV_NAME to become healthy"
+  ready=0
+  for _ in {1..80}; do
+    ROBUSTNESS="$(kubectl -n longhorn-system get volumes.longhorn.io "$PV_NAME" -o jsonpath='{.status.robustness}' 2>/dev/null || true)"
+    STATE="$(kubectl -n longhorn-system get volumes.longhorn.io "$PV_NAME" -o jsonpath='{.status.state}' 2>/dev/null || true)"
+    if [[ "$ROBUSTNESS" == "healthy" && "$STATE" == "attached" ]]; then
+      ready=1
+      break
+    fi
+    sleep 5
+  done
+  if [[ "$ready" -ne 1 ]]; then
+    log "ERROR: Longhorn volume $PV_NAME not ready for workloads"
+    run_bg kubectl -n longhorn-system get volumes.longhorn.io "$PV_NAME" -o wide || true
+    run_bg kubectl -n longhorn-system describe volumes.longhorn.io "$PV_NAME" || true
+    exit 1
+  fi
+fi
+
 log "Waiting for postgres rollout"
-run_bg kubectl -n "$DB_NS" rollout status deploy/postgres --timeout=6m
+run_bg kubectl -n "$DB_NS" rollout status deploy/postgres --timeout=10m
 
 PG_POD="$(kubectl -n "$DB_NS" get pod -l app=postgres -o jsonpath='{.items[0].metadata.name}')"
 
 progress 65
+log "Waiting for postgres readiness query"
+ok=0
+for _ in {1..30}; do
+  if kubectl -n "$DB_NS" exec "$PG_POD" -- env PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -c "SELECT 1;" >/dev/null 2>&1; then
+    ok=1
+    break
+  fi
+  sleep 5
+done
+if [[ "$ok" -ne 1 ]]; then
+  log "ERROR: postgres is not responding to queries"
+  run_bg kubectl -n "$DB_NS" get pod "$PG_POD" -o wide || true
+  run_bg kubectl -n "$DB_NS" describe pod "$PG_POD" || true
+  exit 1
+fi
+
 log "Seeding sample people table"
 run_bg kubectl -n "$DB_NS" exec "$PG_POD" -- env PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -c "CREATE TABLE IF NOT EXISTS people (id SERIAL PRIMARY KEY, first_name TEXT, last_name TEXT, address TEXT, phone TEXT, country TEXT, created_at TIMESTAMP DEFAULT NOW());"
 run_bg kubectl -n "$DB_NS" exec "$PG_POD" -- env PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -c "TRUNCATE TABLE people;"
