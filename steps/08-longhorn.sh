@@ -89,6 +89,26 @@ run_bg kubectl patch storageclass local-path \
 run_bg kubectl patch storageclass longhorn \
   -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 
+# Force default Longhorn SC to single replica for small labs
+run_bg kubectl patch storageclass longhorn --type merge \
+  -p '{"parameters":{"numberOfReplicas":"1"}}' || true
+
+# Dedicated explicit single-replica SC for stateful demo workloads
+cat >/tmp/longhorn-single-replica-sc.yaml <<'EOF'
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: longhorn-single-replica
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+parameters:
+  numberOfReplicas: "1"
+EOF
+run_bg kubectl apply -f /tmp/longhorn-single-replica-sc.yaml
+run_bg rm -f /tmp/longhorn-single-replica-sc.yaml || true
+
 progress 90
 log "Installing CSI snapshot CRDs/controller (required by Kasten snapshots)"
 

@@ -79,9 +79,17 @@ data:
 
     def cpu_to_m(cpu):
       s = str(cpu)
+      if s.endswith("n"):
+        try:
+          return float(s[:-1]) / 1_000_000.0
+        except Exception:
+          return 0.0
       if s.endswith("m"):
         return float(s[:-1])
-      return float(s) * 1000.0
+      try:
+        return float(s) * 1000.0
+      except Exception:
+        return 0.0
 
     def mem_to_mi(mem):
       s = str(mem)

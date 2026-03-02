@@ -67,7 +67,7 @@ metadata:
   namespace: demo-db
 spec:
   accessModes: ["ReadWriteOnce"]
-  storageClassName: longhorn
+  storageClassName: longhorn-single-replica
   resources:
     requests:
       storage: 10Gi
