@@ -137,4 +137,9 @@ ansible/
 README.md
 ```
 
-This repository no longer requires running from a `v2/` subfolder.
+## 10) Project history
+
+This project is part of an ongoing development effort.
+
+Legacy repository:
+- https://github.com/martinljor/kasten-wizard-v2
