@@ -9,6 +9,20 @@ This project is designed for demo/lab usage where you want a reproducible setup 
 - MinIO (running as an OS service on k3s-master)
 - Optional Kasten Location Profile auto-configuration
 - Stateless `lab-status` app exposed on port `8080`
+- Optional stateful PostgreSQL demo with sample data and check script
+
+---
+
+## Architecture
+
+You can view/edit the architecture in draw.io format:
+- `Arch.drawio`
+
+Open the diagram directly in the repository:
+- https://github.com/martinljor/kasten-wizard-v3/blob/main/Arch.drawio
+
+Or open/edit it in draw.io:
+- https://app.diagrams.net/?url=https://raw.githubusercontent.com/martinljor/kasten-wizard-v3/main/Arch.drawio
 
 ---
 
