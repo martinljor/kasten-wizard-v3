@@ -38,7 +38,10 @@ run_bg helm upgrade --install longhorn longhorn/longhorn \
   --set defaultSettings.replicaZoneSoftAntiAffinity=true \
   --set defaultSettings.replicaDiskSoftAntiAffinity=true \
   --set defaultSettings.concurrentReplicaRebuildPerNodeLimit=1 \
-  --set defaultSettings.concurrentAutomaticEngineUpgradePerNodeLimit=1
+  --set defaultSettings.concurrentAutomaticEngineUpgradePerNodeLimit=1 \
+  --set defaultSettings.storageReservedPercentageForDefaultDisk=5 \
+  --set defaultSettings.storageMinimalAvailablePercentage=1 \
+  --set defaultSettings.storageOverProvisioningPercentage=300
 
 
 progress 40
@@ -91,7 +94,7 @@ run_bg kubectl patch storageclass longhorn \
 
 # Force default Longhorn SC to single replica for small labs
 run_bg kubectl patch storageclass longhorn --type merge \
-  -p '{"parameters":{"numberOfReplicas":"1"}}' || true
+  -p '{"parameters":{"numberOfReplicas":"1","staleReplicaTimeout":"30"}}' || true
 
 # Dedicated explicit single-replica SC for stateful demo workloads
 cat >/tmp/longhorn-single-replica-sc.yaml <<'EOF'
@@ -105,6 +108,7 @@ reclaimPolicy: Delete
 volumeBindingMode: Immediate
 parameters:
   numberOfReplicas: "1"
+  staleReplicaTimeout: "30"
 EOF
 run_bg kubectl apply -f /tmp/longhorn-single-replica-sc.yaml
 run_bg rm -f /tmp/longhorn-single-replica-sc.yaml || true
