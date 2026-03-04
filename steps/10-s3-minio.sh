@@ -107,13 +107,52 @@ run_bg ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/
   mc mb --ignore-existing local/${MINIO_BUCKET}
 "
 
-progress 85
-ACCESS_FILE="/var/log/k10-mj/access-summary.log"
+progress 80
+log "Configuring Longhorn default BackupTarget to MinIO"
+
+run_bg kubectl -n longhorn-system create secret generic longhorn-minio-cred \
+  --from-literal=AWS_ACCESS_KEY_ID="${MINIO_USER}" \
+  --from-literal=AWS_SECRET_ACCESS_KEY="${MINIO_PASS}" \
+  --from-literal=AWS_ENDPOINTS="${MASTER_ENDPOINT}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+cat > /tmp/longhorn-backuptarget-default.yaml <<EOF
+apiVersion: longhorn.io/v1beta2
+kind: BackupTarget
+metadata:
+  name: default
+  namespace: longhorn-system
+spec:
+  backupTargetURL: s3://${MINIO_BUCKET}@us-east-1/
+  credentialSecret: longhorn-minio-cred
+  pollInterval: 1m
+EOF
+run_bg kubectl apply -f /tmp/longhorn-backuptarget-default.yaml
+run_bg rm -f /tmp/longhorn-backuptarget-default.yaml || true
+
+# wait for BackupTarget available=true
+BT_OK=0
+for i in {1..30}; do
+  BT_AVAILABLE=$(kubectl -n longhorn-system get backuptargets.longhorn.io default -o jsonpath='{.status.available}' 2>/dev/null || true)
+  if [[ "$BT_AVAILABLE" == "true" ]]; then
+    BT_OK=1
+    break
+  fi
+  sleep 2
+done
+if [[ "$BT_OK" -ne 1 ]]; then
+  log "ERROR: Longhorn BackupTarget did not become available"
+  run_bg kubectl -n longhorn-system get backuptargets.longhorn.io default -o yaml || true
+  return 1
+fi
+
+progress 90
 run_bg touch "$ACCESS_FILE" || true
 
 echo "MinIO S3 (master OS) | ${MASTER_ENDPOINT} | AccessKey: ${MINIO_USER} | SecretKey: ${MINIO_PASS}" >> "$ACCESS_FILE"
 echo "MinIO Console (master OS) | http://${MASTER_IP}:9001 | AccessKey: ${MINIO_USER} | SecretKey: ${MINIO_PASS}" >> "$ACCESS_FILE"
 echo "MinIO Bucket | ${MINIO_BUCKET}" >> "$ACCESS_FILE"
+echo "Longhorn BackupTarget | s3://${MINIO_BUCKET}@us-east-1/ | ready=true" >> "$ACCESS_FILE"
 
 # Machine-readable values for next automation step
 cat > /var/log/k10-mj/minio.env <<EOF
