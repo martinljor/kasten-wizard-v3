@@ -122,6 +122,31 @@ run_bg sudo -u "$REAL_USER" chmod 600 "$KUBE_DIR/config"
 
 log "kubeconfig installed at $KUBE_DIR/config"
 
+progress 85
+log "Validating cluster node readiness (expecting 3 Ready nodes)"
+
+READY_OK=0
+for i in {1..60}; do
+  READY_COUNT=$(sudo -u "$REAL_USER" KUBECONFIG="$KUBE_DIR/config" kubectl get nodes --no-headers 2>/dev/null | awk '$2=="Ready"{c++} END{print c+0}')
+  TOTAL_COUNT=$(sudo -u "$REAL_USER" KUBECONFIG="$KUBE_DIR/config" kubectl get nodes --no-headers 2>/dev/null | wc -l | xargs || echo 0)
+
+  if [[ "$READY_COUNT" -ge 3 && "$TOTAL_COUNT" -ge 3 ]]; then
+    READY_OK=1
+    break
+  fi
+
+  if (( i % 6 == 0 )); then
+    log "Waiting nodes Ready: $READY_COUNT/$TOTAL_COUNT (target 3/3)"
+  fi
+  sleep 5
+done
+
+if [[ "$READY_OK" -ne 1 ]]; then
+  log "ERROR: Cluster did not reach 3 Ready nodes"
+  sudo -u "$REAL_USER" KUBECONFIG="$KUBE_DIR/config" kubectl get nodes -o wide >> "$LOG_FILE" 2>&1 || true
+  return 1
+fi
+
 progress 100
 log "STEP 06 completed successfully"
 
