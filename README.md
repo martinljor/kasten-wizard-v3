@@ -61,7 +61,9 @@ chmod -R +x .
 sudo ./install.sh
 ```
 
-During execution, you may be prompted for optional auto-configuration steps (for example, Kasten Location Profile bootstrap).
+During execution, you may be prompted for optional steps (strict `yes/no` validation), for example:
+- Kasten Location Profile auto-bootstrap
+- Stateful PostgreSQL demo deployment
 
 ---
 
@@ -90,6 +92,7 @@ During execution, you may be prompted for optional auto-configuration steps (for
 - **Step 9**: Install MinIO on k3s-master OS + create bucket
 - **Step 10**: (Optional) Auto-configure Kasten Location Profile
 - **Step 11**: Deploy stateless `lab-status` service on `:8080/status`
+- **Step 12**: (Optional) Deploy stateful PostgreSQL demo + seed data + host check script
 
 ---
 
@@ -100,6 +103,7 @@ Typical outputs after success:
 - K10 LAN URL
 - MinIO endpoint and bucket
 - Stateless app URL (`/status`)
+- Optional PostgreSQL stateful details + generated check script path
 
 Common access examples:
 - `http://<host-lan-ip>/k10/#`
