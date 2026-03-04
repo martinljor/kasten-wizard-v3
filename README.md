@@ -156,3 +156,12 @@ This project is part of an ongoing development effort.
 
 Legacy repository:
 - https://github.com/martinljor/kasten-wizard-v2
+
+## 11) Release notes (`v3.0-lab`)
+
+This started as a bash-only project focused on a single-node setup.
+After several iterations and feedback, the target evolved into a more professional lab experience while still remaining practical for small environments.
+
+The result in `v3.0-lab` is a complete lab workflow with documented requirements and support for two application profiles:
+- **Stateless app** (`lab-status`)
+- **Optional stateful app** (PostgreSQL with seeded data and validation script)
