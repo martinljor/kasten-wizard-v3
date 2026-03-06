@@ -7,9 +7,39 @@ log() {
   echo "[INFO] $*" >> "$LOG_FILE"
 }
 
-run_bg apt-get update -y
+export DEBIAN_FRONTEND=noninteractive
 
-run_bg apt-get install -y \
+is_apt_busy() {
+  pgrep -x apt >/dev/null 2>&1 || \
+  pgrep -x apt-get >/dev/null 2>&1 || \
+  pgrep -x dpkg >/dev/null 2>&1 || \
+  pgrep -f unattended-upgrade >/dev/null 2>&1
+}
+
+recover_apt_if_busy() {
+  local waited=0
+  local max_wait=30
+
+  while is_apt_busy && (( waited < max_wait )); do
+    sleep 2
+    waited=$((waited + 2))
+  done
+
+  if is_apt_busy; then
+    log "APT still busy after ${max_wait}s; forcing recovery"
+    run_bg killall apt apt-get dpkg unattended-upgrade || true
+    sleep 2
+  fi
+
+  run_bg dpkg --configure -a || true
+  run_bg apt-get -f install -y -o Dpkg::Use-Pty=0 -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" || true
+}
+
+recover_apt_if_busy
+
+run_bg apt-get update -y -o Dpkg::Use-Pty=0
+
+run_bg apt-get install -y -o Dpkg::Use-Pty=0 -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
   ca-certificates \
   curl \
   gnupg \
