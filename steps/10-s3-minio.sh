@@ -110,11 +110,13 @@ run_bg ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/
 progress 80
 log "Configuring Longhorn default BackupTarget to MinIO"
 
-run_bg kubectl -n longhorn-system create secret generic longhorn-minio-cred \
+kubectl -n longhorn-system create secret generic longhorn-minio-cred \
   --from-literal=AWS_ACCESS_KEY_ID="${MINIO_USER}" \
   --from-literal=AWS_SECRET_ACCESS_KEY="${MINIO_PASS}" \
   --from-literal=AWS_ENDPOINTS="${MASTER_ENDPOINT}" \
-  --dry-run=client -o yaml | kubectl apply -f -
+  --dry-run=client -o yaml > /tmp/longhorn-minio-cred.yaml
+run_bg kubectl apply -f /tmp/longhorn-minio-cred.yaml
+run_bg rm -f /tmp/longhorn-minio-cred.yaml || true
 
 cat > /tmp/longhorn-backuptarget-default.yaml <<EOF
 apiVersion: longhorn.io/v1beta2
