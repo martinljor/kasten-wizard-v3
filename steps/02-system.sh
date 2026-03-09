@@ -32,14 +32,14 @@ recover_apt_if_busy() {
   fi
 
   run_bg dpkg --configure -a || true
-  run_bg apt-get -f install -y -o Dpkg::Use-Pty=0 -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" || true
+  run_bg apt-get -f install -y -o DPkg::Lock::Timeout=30 -o Dpkg::Use-Pty=0 -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" || true
 }
 
 recover_apt_if_busy
 
-run_bg apt-get update -y -o Dpkg::Use-Pty=0
+run_bg apt-get update -y -o DPkg::Lock::Timeout=30 -o Dpkg::Use-Pty=0
 
-run_bg apt-get install -y -o Dpkg::Use-Pty=0 -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+run_bg apt-get install -y -o DPkg::Lock::Timeout=30 -o Dpkg::Use-Pty=0 -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
   ca-certificates \
   curl \
   gnupg \
