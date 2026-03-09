@@ -124,14 +124,44 @@ VIRT_TYPE="kvm"
 CPU_MODEL="host-model"
 MACHINE_OPT=""
 
+pick_qemu_cpu_model() {
+  # Try to detect supported CPU models for portability across ESXi/Hyper-V nested labs
+  local models=""
+  if command -v virsh >/dev/null 2>&1; then
+    models="$(virsh cpu-models "$ARCH" 2>/dev/null || true)"
+  fi
+
+  if [[ "$ARCH" == "x86_64" ]]; then
+    if echo "$models" | grep -qw max; then
+      echo "max"
+    elif echo "$models" | grep -qw qemu64; then
+      echo "qemu64"
+    else
+      echo "host"
+    fi
+  elif [[ "$ARCH" == "aarch64" ]]; then
+    if echo "$models" | grep -qw max; then
+      echo "max"
+    elif echo "$models" | grep -qw cortex-a72; then
+      echo "cortex-a72"
+    else
+      echo "host"
+    fi
+  else
+    echo "host"
+  fi
+}
+
 if [[ ! -e /dev/kvm ]]; then
   VIRT_TYPE="qemu"
-  CPU_MODEL="max"
+  CPU_MODEL="$(pick_qemu_cpu_model)"
 fi
 
 if [[ "$ARCH" == "aarch64" ]]; then
-  CPU_MODEL="max"
   MACHINE_OPT="virt"
+  if [[ "$VIRT_TYPE" == "kvm" ]]; then
+    CPU_MODEL="host-model"
+  fi
 fi
 
 log "VM platform profile: arch=$ARCH virt_type=$VIRT_TYPE cpu_model=$CPU_MODEL${MACHINE_OPT:+ machine=$MACHINE_OPT}"
