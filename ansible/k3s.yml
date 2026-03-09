@@ -17,15 +17,19 @@
   become: true
   gather_facts: false
   tasks:
-    - name: Install k3s server (non-blocking)
+    - name: Install k3s server (blocking)
       shell: |
         curl -sfL https://get.k3s.io | \
         K3S_NODE_NAME={{ inventory_hostname }} \
         sh -s - server --disable traefik
       args:
         creates: /usr/local/bin/k3s
-      async: 900
-      poll: 0
+
+    - name: Ensure k3s service is enabled and running on master
+      systemd:
+        name: k3s
+        enabled: true
+        state: started
 
     - name: Wait for k3s server bootstrap (node-token)
       wait_for:

@@ -215,6 +215,12 @@ create_vm k3s-master  "$MASTER_MEM" "$MASTER_VCPUS"
 create_vm k3s-worker1 "$WORKER_MEM" "$WORKER_VCPUS"
 create_vm k3s-worker2 "$WORKER_MEM" "$WORKER_VCPUS"
 
+progress 75
+log "Enabling VM autostart on host reboot"
+run_bg sudo virsh autostart k3s-master
+run_bg sudo virsh autostart k3s-worker1
+run_bg sudo virsh autostart k3s-worker2
+
 progress 85
 log "Waiting for VMs to boot"
 sleep 30
