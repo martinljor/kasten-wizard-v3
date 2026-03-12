@@ -133,13 +133,26 @@ run_bg kubectl apply -f /tmp/longhorn-backuptarget-default.yaml
 run_bg rm -f /tmp/longhorn-backuptarget-default.yaml || true
 
 # wait for BackupTarget available=true
+# In some environments Longhorn may briefly report NoSuchBucket while MinIO settles.
+# We re-ensure bucket existence while waiting.
 BT_OK=0
-for i in {1..30}; do
+for i in {1..90}; do
   BT_AVAILABLE=$(kubectl -n longhorn-system get backuptargets.longhorn.io default -o jsonpath='{.status.available}' 2>/dev/null || true)
   if [[ "$BT_AVAILABLE" == "true" ]]; then
     BT_OK=1
     break
   fi
+
+  if (( i % 10 == 0 )); then
+    log "BackupTarget still unavailable; re-validating bucket ${MINIO_BUCKET} on MinIO"
+    run_bg ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$MASTER_USER@$MASTER_IP" "
+      set -Eeuo pipefail
+      mc alias set local http://127.0.0.1:9000 '${MINIO_USER}' '${MINIO_PASS}'
+      mc mb --ignore-existing local/${MINIO_BUCKET}
+      mc ls local/${MINIO_BUCKET}
+    " || true
+  fi
+
   sleep 2
 done
 if [[ "$BT_OK" -ne 1 ]]; then
