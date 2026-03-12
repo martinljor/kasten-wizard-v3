@@ -5,7 +5,7 @@ SUMMARY_STEP="$TOTAL_STEPS"
 SUMMARY_TITLE="INSTALLATION COMPLETED"
 
 OLD_PANEL_HEIGHT="$PANEL_HEIGHT"
-PANEL_HEIGHT=24
+PANEL_HEIGHT=28
 
 hide_cursor
 clear
@@ -93,8 +93,8 @@ fi
 
 ((ROW+=1))
 print_green_line "LOGS:" "$ROW"; ((ROW+=1))
-print_green_line "- $LOG_FILE" "$ROW"; ((ROW+=1))
-print_green_line "- $STEP_LOG_FILE" "$ROW"
+print_green_line "- $(basename "$LOG_FILE")" "$ROW"; ((ROW+=1))
+print_green_line "- $(basename "$STEP_LOG_FILE")" "$ROW"
 
 PANEL_HEIGHT="$OLD_PANEL_HEIGHT"
 show_cursor
