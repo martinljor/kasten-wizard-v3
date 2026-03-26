@@ -49,11 +49,6 @@ run_bg() {
   echo "[$(date '+%F %T')] $*" >> "$LOG_FILE"
   "$@" >> "$LOG_FILE" 2>&1
 }
-export STEP_LOG_FILE
-export START_TIME
-export RUN_ID
-export ACCESS_FILE
-
 # --------------------------------------------------
 # Wizard state
 # --------------------------------------------------
@@ -62,6 +57,11 @@ CURRENT_STEP=0
 CURRENT_TITLE=""
 
 START_TIME=$(date +%s)
+
+export STEP_LOG_FILE
+export START_TIME
+export RUN_ID
+export ACCESS_FILE
 
 # --------------------------------------------------
 # Step state (prevents OK+FAILED duplication)

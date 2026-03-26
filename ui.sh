@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-set -u
+set -euo pipefail
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  echo "Do not run ui.sh directly"
+  exit 1
+fi
 
 # =========================
 # CONFIG
@@ -144,8 +149,8 @@ confirm_start() {
   enable_terminal_input
 
   case "$answer" in
-    yes|YES) return 0 ;;
-    no|NO)
+    [Yy]|[Yy][Ee][Ss]) return 0 ;;
+    [Nn]|[Nn][Oo])
       clear
       draw_green_panel
       print_green_line "Installation aborted by user." 6
@@ -155,7 +160,7 @@ confirm_start() {
     *)
       clear
       draw_green_panel
-      print_red_line "Invalid answer. Please run the installer again." 6
+      print_red_line "Invalid option. Please answer: yes or no" 6
       show_cursor
       exit 1
       ;;
@@ -217,7 +222,6 @@ draw_error() {
   echo -e "\033[31mERROR: execution failed. Check logs above.\033[0m"
 
   show_cursor
-  exit 1
 }
 
 draw_abort() {
